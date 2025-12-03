@@ -49,11 +49,11 @@ export async function POST(
     );
   }
 
-  await prisma.$transaction(async (tx: PrismaClient) => {
-    await tx.approval.update({
-      where: { id: approval.id },
-      data: { decision, note, decidedAt: new Date() },
-    });
+await prisma.$transaction(async (tx) => {
+  await tx.approval.update({
+    where: { id: approval.id },
+    data: { decision, note, decidedAt: new Date() },
+  });
 
     const approvals = await tx.approval.findMany({
       where: { requestId: requestData.id },
