@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import {
@@ -15,7 +15,7 @@ import {
 
 type LoginMode = 'staff' | 'pkwt' | 'guest';
 
-export default function LoginPage() {
+function LoginPageInner() {
   const sp = useSearchParams();
   // ✅ default ke Home
   const callbackUrl = useMemo(() => sp.get('callbackUrl') ?? '/', [sp]);
@@ -197,7 +197,9 @@ export default function LoginPage() {
             {mode !== 'guest' ? (
               <>
                 <div className="relative">
-                  <label htmlFor="email" className="sr-only">Email</label>
+                  <label htmlFor="email" className="sr-only">
+                    Email
+                  </label>
                   <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                     <Mail className="w-4 h-4 text-slate-400" />
                   </div>
@@ -207,14 +209,18 @@ export default function LoginPage() {
                     autoComplete="email"
                     required
                     value={email}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setEmail(e.target.value)
+                    }
                     placeholder="nama@tekpol.local"
                     className="w-full rounded-lg border border-slate-300/70 dark:border-slate-700 bg-white/80 dark:bg-slate-900/60 pl-9 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500/50"
                   />
                 </div>
 
                 <div className="relative">
-                  <label htmlFor="password" className="sr-only">Password</label>
+                  <label htmlFor="password" className="sr-only">
+                    Password
+                  </label>
                   <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                     <Lock className="w-4 h-4 text-slate-400" />
                   </div>
@@ -224,7 +230,9 @@ export default function LoginPage() {
                     autoComplete="current-password"
                     required
                     value={password}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setPassword(e.target.value)
+                    }
                     placeholder="••••••••"
                     className="w-full rounded-lg border border-slate-300/70 dark:border-slate-700 bg-white/80 dark:bg-slate-900/60 pl-9 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500/50"
                   />
@@ -232,7 +240,9 @@ export default function LoginPage() {
               </>
             ) : (
               <div className="relative">
-                <label htmlFor="guestName" className="sr-only">Nama</label>
+                <label htmlFor="guestName" className="sr-only">
+                  Nama
+                </label>
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                   <UserRound className="w-4 h-4 text-slate-400" />
                 </div>
@@ -241,7 +251,9 @@ export default function LoginPage() {
                   type="text"
                   required
                   value={guestName}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setGuestName(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setGuestName(e.target.value)
+                  }
                   placeholder="Nama lengkap"
                   className="w-full rounded-lg border border-slate-300/70 dark:border-slate-700 bg-white/80 dark:bg-slate-900/60 pl-9 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500/50"
                 />
@@ -249,7 +261,9 @@ export default function LoginPage() {
             )}
 
             {errorMsg && (
-              <div className="text-sm text-red-600 dark:text-red-400">{errorMsg}</div>
+              <div className="text-sm text-red-600 dark:text-red-400">
+                {errorMsg}
+              </div>
             )}
 
             <button
@@ -269,5 +283,21 @@ export default function LoginPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-dvh flex items-center justify-center p-4">
+          <div className="rounded-xl border border-slate-200/70 bg-white/80 dark:bg-slate-900/70 px-6 py-4 text-sm text-slate-600 dark:text-slate-300 shadow-sm">
+            Memuat halaman login...
+          </div>
+        </main>
+      }
+    >
+      <LoginPageInner />
+    </Suspense>
   );
 }
