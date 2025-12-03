@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import type { PrismaClient } from "@prisma/client";
 
 type Decision = "PENDING" | "APPROVED" | "REJECTED";
 
@@ -14,10 +13,9 @@ const Body = z.object({
 
 export async function POST(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
-  // ✅ params sekarang Promise, jadi harus di-await
-  const { id } = await context.params;
+  const { id } = params;
 
   const session = await getServerSession(authOptions);
   if (!session) {
@@ -35,6 +33,7 @@ export async function POST(
     where: { id },
     include: { approvals: true },
   });
+
   if (!requestData) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
@@ -42,6 +41,7 @@ export async function POST(
   const approval = await prisma.approval.findFirst({
     where: { requestId: requestData.id, approverId },
   });
+
   if (!approval) {
     return NextResponse.json(
       { error: "Tidak berwenang approve request ini." },
@@ -49,39 +49,53 @@ export async function POST(
     );
   }
 
-await prisma.$transaction(async (tx) => {
-  await tx.approval.update({
-    where: { id: approval.id },
-    data: { decision, note, decidedAt: new Date() },
-  });
+  await prisma.$transaction(async (tx) => {
+    await tx.approval.update({
+      where: { id: approval.id },
+      data: {
+        decision,
+        note,
+        decidedAt: new Date(),
+      },
+    });
 
     const approvals = await tx.approval.findMany({
       where: { requestId: requestData.id },
     });
 
     const anyRejected = approvals.some(
-      (a: { decision: Decision }) => a.decision === "REJECTED"
+      (a) => a.decision === "REJECTED"
     );
+
     if (anyRejected) {
       await tx.request.update({
         where: { id: requestData.id },
-        data: { status: "REJECTED", rejectionNote: note || null },
+        data: {
+          status: "REJECTED",
+          rejectionNote: note || null,
+        },
       });
       return;
     }
 
     const allApproved = approvals.every(
-      (a: { decision: Decision }) => a.decision === "APPROVED"
+      (a) => a.decision === "APPROVED"
     );
+
     if (allApproved) {
       await tx.request.update({
         where: { id: requestData.id },
-        data: { status: "APPROVED", rejectionNote: null },
+        data: {
+          status: "APPROVED",
+          rejectionNote: null,
+        },
       });
     } else {
       await tx.request.update({
         where: { id: requestData.id },
-        data: { status: "PENDING" },
+        data: {
+          status: "PENDING",
+        },
       });
     }
   });
