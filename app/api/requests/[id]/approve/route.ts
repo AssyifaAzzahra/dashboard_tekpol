@@ -13,9 +13,10 @@ const Body = z.object({
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = params;
+  // ⬅️ sesuai Next.js 15/16: params adalah Promise
+  const { id } = await params;
 
   const session = await getServerSession(authOptions);
   if (!session) {
@@ -49,6 +50,7 @@ export async function POST(
     );
   }
 
+  // 💡 fix Prisma: biarkan Prisma infer tipe tx, jangan pakai PrismaClient
   await prisma.$transaction(async (tx) => {
     await tx.approval.update({
       where: { id: approval.id },
@@ -64,9 +66,8 @@ export async function POST(
     });
 
     const anyRejected = approvals.some(
-      (a) => a.decision === "REJECTED"
+      (a: { decision: Decision }) => a.decision === "REJECTED"
     );
-
     if (anyRejected) {
       await tx.request.update({
         where: { id: requestData.id },
@@ -79,9 +80,8 @@ export async function POST(
     }
 
     const allApproved = approvals.every(
-      (a) => a.decision === "APPROVED"
+      (a: { decision: Decision }) => a.decision === "APPROVED"
     );
-
     if (allApproved) {
       await tx.request.update({
         where: { id: requestData.id },
