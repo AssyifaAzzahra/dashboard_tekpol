@@ -1,8 +1,9 @@
 // components/home/HomeRouter.tsx
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import type { HomeView } from '@/lib/types';
+
 import HomeHero from './HomeHero';
 import ProfileCards from './ProfileCards';
 import PksList from './PksList';
@@ -13,22 +14,86 @@ import { PKS_LIST, getPksDetail } from '@/lib/data/pks';
 import NewsSection from './NewsSection';
 import { useSession } from 'next-auth/react';
 
-// Client komponen yang sudah ada
+// Client components lain
 import AppsClient from '@/app/apps/credentials/view-client';
 import RequestFormClient from '@/app/info-login/request-form-client';
 import ApprovalClient from '@/app/approval/view-client';
 
-// ---- tipe ringan buat data ----
+// ---- tipe dasar ----
 type Role = 'PKWT' | 'KARYAWAN' | 'KASUBAG' | 'KABAG' | 'GUEST';
 type Decision = 'PENDING' | 'APPROVED' | 'REJECTED';
 type Category = 'HO' | 'REGIONAL';
 
-type App = { id: string; name: string; category: Category; username: string; password: string; description?: string | null };
-type User = { id: string; name: string; email?: string | null };
-type Approval = { id: string; requestId: string; approverId: string; role: Role; decision: Decision; note?: string | null; decidedAt?: string | Date | null; approver?: User | null };
-type Request = { id: string; type: 'PKWT' | 'GUEST'; appId: string; requesterId: string; picId?: string | null; reason?: string | null; division?: string | null; status: Decision; rejectionNote?: string | null };
-type MyReq = Request & { app: App; approvals: Approval[]; pic: User | null };
-type Row = Request & { app: App; requester: User; approvals: (Approval & { approver: User })[]; pic: User | null };
+type App = {
+  id: string;
+  name: string;
+  category: Category;
+  username: string;
+  password: string;
+  description?: string | null;
+};
+
+type User = {
+  id: string;
+  name: string;
+  email?: string | null;
+};
+
+// ====== APPROVAL UNTUK INFO-LOGIN (MyReq) ======
+type ApprovalInfo = {
+  id: string;
+  requestId: string;
+  approverId: string;
+  role: Role;
+  decision: Decision;
+  note?: string | null;
+  // Di sisi info-login (AppsClient) sebelumnya error karena
+  // sisi lain mengharapkan Date | null → kita pakai Date di sini
+  decidedAt?: Date | null;
+  approver?: User | null;
+};
+
+// ====== APPROVAL UNTUK HALAMAN APPROVAL (rows) ======
+type ApprovalRow = {
+  id: string;
+  requestId: string;
+  approverId: string;
+  role: Role;
+  decision: Decision;
+  note?: string | null;
+  // Di sisi ApprovalClient (view-client.tsx) dari error kelihatan
+  // dia mengharapkan string | null
+  decidedAt?: string | null;
+  approver: User;
+};
+
+// ====== REQUEST DASAR (tanpa relasi) ======
+type BaseRequest = {
+  id: string;
+  type: 'PKWT' | 'GUEST';
+  appId: string;
+  requesterId: string;
+  picId?: string | null;
+  reason?: string | null;
+  division?: string | null;
+  status: Decision;
+  rejectionNote?: string | null;
+};
+
+// ====== REQUEST UNTUK INFO-LOGIN (MyReq) ======
+type MyReq = BaseRequest & {
+  app: App;
+  approvals: ApprovalInfo[];
+  pic: User | null;
+};
+
+// ====== REQUEST UNTUK HALAMAN APPROVAL (rows) ======
+type Row = BaseRequest & {
+  app: App;
+  requester: User;
+  approvals: ApprovalRow[];
+  pic: User | null;
+};
 
 // ----- Loader kecil untuk info-login -----
 function InfoLoginPane() {
@@ -43,6 +108,7 @@ function InfoLoginPane() {
 
   useEffect(() => {
     let alive = true;
+
     (async () => {
       try {
         const [appsRes, reqsRes, picsRes] = await Promise.all([
@@ -50,18 +116,28 @@ function InfoLoginPane() {
           fetch('/api/requests', { cache: 'no-store' }),
           fetch('/api/pics', { cache: 'no-store' }),
         ]);
+
         const [appsJson, reqsJson, picsJson] = await Promise.all([
-          appsRes.json(), reqsRes.json(), picsRes.json(),
+          appsRes.json(),
+          reqsRes.json(),
+          picsRes.json(),
         ]);
+
         if (!alive) return;
-        setApps(appsJson);
-        setMyReqs(reqsJson);
-        setPics(picsJson);
+
+        // Di sini kita "anggap" bentuknya sudah cocok dengan MyReq
+        // (kalau mau lebih strict bisa map & convert decidedAt ke Date)
+        setApps(appsJson as App[]);
+        setMyReqs(reqsJson as MyReq[]);
+        setPics(picsJson as User[]);
       } finally {
         if (alive) setLoading(false);
       }
     })();
-    return () => { alive = false; };
+
+    return () => {
+      alive = false;
+    };
   }, []);
 
   if (loading) {
@@ -79,34 +155,59 @@ function InfoLoginPane() {
   if (role === 'KARYAWAN' || role === 'KASUBAG' || role === 'KABAG') {
     return <AppsClient role={role} apps={apps} myReqs={myReqs} pics={pics} />;
   }
-  return <RequestFormClient role={role} apps={apps} pics={pics} myReqs={myReqs} userName={userName} />;
+
+  return (
+    <RequestFormClient
+      role={role}
+      apps={apps}
+      pics={pics}
+      myReqs={myReqs}
+      userName={userName}
+    />
+  );
 }
 
 // ----- Loader kecil untuk approval -----
 function ApprovalPane() {
   const { data } = useSession();
   const role = (data?.user?.role ?? 'GUEST') as Role;
+
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let alive = true;
+
     (async () => {
       try {
         const res = await fetch('/api/approval', { cache: 'no-store' });
         const json = await res.json();
         if (!alive) return;
-        setRows(json);
+
+        // Di sini juga kita anggap sudah cocok dengan Row
+        // (kalau API kirim decidedAt string, ini nyambung dengan ApprovalRow)
+        setRows(json as Row[]);
       } finally {
         if (alive) setLoading(false);
       }
     })();
-    return () => { alive = false; };
+
+    return () => {
+      alive = false;
+    };
   }, []);
 
   if (loading) {
-    return <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/70 p-5">Memuat daftar permohonan…</div>;
+    return (
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/70 p-5">
+        Memuat daftar permohonan…
+      </div>
+    );
   }
+
+  // ApprovalClient di view-client.tsx mengharapkan:
+  // props: { role: Role; rows: Request[] }
+  // Di sini Row sudah disusun supaya struktur-nya sama dengan yang dia harapkan
   return <ApprovalClient role={role} rows={rows} />;
 }
 
@@ -117,7 +218,7 @@ export default function HomeRouter({
   forcedView?: HomeView;
   onViewChange?: (v: HomeView) => void;
 }) {
-  // gunakan state internal hanya jika tidak dipaksa dari parent
+  // state internal dipakai kalau tidak ada forcedView dari parent
   const [internalView, setInternalView] = useState<HomeView>('root');
   const [selectedPksId, setSelectedPksId] = useState<string | null>(null);
 
@@ -125,13 +226,15 @@ export default function HomeRouter({
 
   const setView = (v: HomeView) => {
     if (forcedView) {
-      onViewChange?.(v);    // parent yang mengontrol state
+      // kalau parent yang kontrol state view
+      onViewChange?.(v);
     } else {
       setInternalView(v);
       onViewChange?.(v);
     }
   };
 
+  // === PKS list ===
   if (view === 'pks-list') {
     return (
       <PksList
@@ -145,20 +248,37 @@ export default function HomeRouter({
     );
   }
 
+  // === PKS detail ===
   if (view === 'pks-detail' && selectedPksId) {
     const detail = getPksDetail(selectedPksId);
     if (!detail) return null;
-    return <PksDetailView detail={detail} onBack={() => setView('pks-list')} />;
+    return (
+      <PksDetailView
+        detail={detail}
+        onBack={() => setView('pks-list')}
+      />
+    );
   }
 
-  if (view === 'ppis') return <PpisDetail onBack={() => setView('root')} />;
-  if (view === 'ppkr') return <PpkrDetail onBack={() => setView('root')} />;
+  // === PPIS & PPKR ===
+  if (view === 'ppis') {
+    return <PpisDetail onBack={() => setView('root')} />;
+  }
+
+  if (view === 'ppkr') {
+    return <PpkrDetail onBack={() => setView('root')} />;
+  }
 
   // === Integrasi halaman lain sebagai sub-view ===
-  if (view === 'info-login') return <InfoLoginPane />;
-  if (view === 'approval') return <ApprovalPane />;
+  if (view === 'info-login') {
+    return <InfoLoginPane />;
+  }
 
-  // root
+  if (view === 'approval') {
+    return <ApprovalPane />;
+  }
+
+  // === ROOT ===
   return (
     <>
       <HomeHero />
