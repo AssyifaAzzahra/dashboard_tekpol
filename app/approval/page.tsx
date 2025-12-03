@@ -30,5 +30,5 @@ export default async function ApprovalPage() {
     orderBy: { createdAt: "desc" },
   });
 
-  return <ApprovalClient role={role} rows={rows as Row[]} />;
+  return <ApprovalClient role={role} rows={rows as any} />;
 }
