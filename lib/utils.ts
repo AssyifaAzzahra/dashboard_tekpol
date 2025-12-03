@@ -1,0 +1,1 @@
+export const cls = (...s: (string | false | null | undefined)[]) => s.filter(Boolean).join(' ');

@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+/* ===== Full-page background base ===== */
+html,
+body {
+  height: 100%;
+}
+
+/* ===== Mode foto (lama) — tetap disimpan jika sewaktu-waktu mau balik ke foto ===== */
+body.app-has-photo {
+  background-image: url('/images/home1.jpg');
+  background-size: cover;
+  background-position: center center;
+  background-attachment: fixed;
+}
+
+/* Overlay supaya konten tetap terbaca untuk foto */
+body.app-has-photo::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: rgba(6, 12, 20, 0.45);
+  z-index: 0;
+}
+
+/* ===== Mode video (baru) ===== */
+body.app-has-video {
+  /* fallback warna gelap jika video belum sempat load */
+  background: #0b1220;
+}
+
+/* Elemen video full-viewport di belakang konten */
+body.app-has-video .app-bg-video {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* isi penuh tanpa distorsi */
+  z-index: -1;
+  /* di belakang semua konten */
+  pointer-events: none;
+  /* biar tidak mengganggu klik/scroll */
+}
+
+/* Overlay gelap ringan di atas video agar teks mudah dibaca */
+body.app-has-video::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: rgba(6, 12, 20, 0.35);
+  /* atur opacity sesuai selera */
+  z-index: 0;
+}

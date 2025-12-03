@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  PKWT
+  KARYAWAN
+  KASUBAG
+  KABAG
+  GUEST
+}
+
+enum Category {
+  HO
+  REGIONAL
+}
+
+enum RequestType {
+  PKWT
+  GUEST
+}
+
+enum Decision {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id           String     @id @default(cuid())
+  name         String
+  email        String?    @unique
+  passwordHash String?
+  role         Role
+  isPic        Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+
+  // relasi
+  requests     Request[]  @relation("RequestsByUser")  // sebagai requester
+  approvals    Approval[]
+  picRequests  Request[]  @relation("PicUser")         // sebagai PIC  <<--- TAMBAHAN INI
+}
+
+model App {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  category    Category
+  username    String
+  password    String
+  description String?
+  requests    Request[]
+}
+
+model Request {
+  id            String      @id @default(cuid())
+  type          RequestType
+  requester     User        @relation("RequestsByUser", fields: [requesterId], references: [id], onDelete: Cascade)
+  requesterId   String
+  app           App         @relation(fields: [appId], references: [id], onDelete: Cascade)
+  appId         String
+  pic           User?       @relation("PicUser", fields: [picId], references: [id])  // relasi ke PIC
+  picId         String?
+  reason        String?
+  division      String?
+  status        Decision    @default(PENDING)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  approvals     Approval[]
+  rejectionNote String?
+}
+
+model Approval {
+  id         String    @id @default(cuid())
+  request    Request   @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  requestId  String
+  approver   User      @relation(fields: [approverId], references: [id], onDelete: Cascade)
+  approverId String
+  role       Role
+  decision   Decision  @default(PENDING)
+  note       String?
+  decidedAt  DateTime?
+}
