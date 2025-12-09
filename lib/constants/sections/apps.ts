@@ -11,7 +11,6 @@ const appsGroup =
 /** Daftar fallback (dari user) */
 const FALLBACK_APPS: LinkItem[] = [
   { id: 'app-mypalmco', title: 'MYPALMCO', href: 'https://palmco.my.id/' },
-  { id: 'app-int', title: 'Intank Dashboard', href: 'https://palmco.intank.id/login', tag: 'Login' },
   { id: 'app-pica', title: 'PICA', href: 'https://picatekpol.ptpn4.co.id/login', tag: 'Login' },
   { id: 'app-e-tekpol', title: 'E-Tekpol', href: 'http://118.97.163.52:8182/etekpol/', tag: 'Login' },
   { id: 'app-elemen', title: 'Elemen', href: 'https://elemen.ptpn.id/auth/welcome', tag: 'Login' },
@@ -38,7 +37,8 @@ const FALLBACK_APPS: LinkItem[] = [
   { id: 'app-sevp', title: 'SEVP OPS REG 3', href: 'https://sites.google.com/view/sevpopsreg3/halaman-muka', tag: 'Login' },  
   { id: 'app-han', title: 'Hana', href: 'http://hana.reg3.ptpn4.co.id', tag: 'Login' },  
   { id: 'app-slip', title: 'Eslip', href: 'http://app.reg3.ptpn4.co.id/eslip', tag: 'Login' },  
-  { id: 'app-ris', title: 'Hris', href: 'http://app.reg3.ptpn4.co.id/cbhrm', tag: 'Login' },  
+  { id: 'app-ris', title: 'Hris', href: 'http://app.reg3.ptpn4.co.id/cbhrm', tag: 'Login' },
+  { id: 'app-in', title: 'INTANK', href: 'https://palmco.intank.id/login', tag: 'Login' },
 ];
 
 /** ===== Helper: hilangkan duplikat berdasar href ===== */
@@ -63,7 +63,7 @@ function relabelPriorityTitle(item: LinkItem): LinkItem {
     return { ...item, title: 'MY PALMCO' };
   }
   if (href.startsWith('https://palmco.intank.id') || cur.includes('intank')) {
-    return { ...item, title: 'PALMCO' };
+    return { ...item, title: 'INTANK' };
   }
   if (href.startsWith('https://picatekpol.ptpn4.co.id')) {
     return { ...item, title: 'PICA' };
@@ -78,7 +78,7 @@ function relabelPriorityTitle(item: LinkItem): LinkItem {
 }
 
 
-const PRIORITY = ['MY PALMCO', 'PALMCO', 'PICA', 'E-TEKPOL', 'ELEMEN'] as const;
+const PRIORITY = ['MY PALMCO', 'INTANK', 'PICA', 'E-TEKPOL', 'ELEMEN'] as const;
 
 function priorityIndex(title: string): number {
   const idx = PRIORITY.indexOf(title.toUpperCase() as (typeof PRIORITY)[number]);

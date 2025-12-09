@@ -1,8 +1,10 @@
+// app/login/page.tsx
 'use client';
 
 import React, { useMemo, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
+import Link from 'next/link';
 import {
   ShieldCheck,
   BriefcaseBusiness,
@@ -13,21 +15,18 @@ import {
   Building2,
 } from 'lucide-react';
 
-type LoginMode = 'staff' | 'pkwt' | 'guest';
+type LoginMode = 'KARPIM' | 'KARPEL' | 'guest';
 
 function LoginPageInner() {
   const sp = useSearchParams();
-  // ✅ default ke Home
+  // callbackUrl masih boleh ada, tapi tidak kita pakai untuk redirect Kabag
   const callbackUrl = useMemo(() => sp.get('callbackUrl') ?? '/', [sp]);
 
-  const [mode, setMode] = useState<LoginMode>('staff');
+  const [mode, setMode] = useState<LoginMode>('KARPIM');
 
   // staff / pkwt
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
-
-  // guest
-  const [guestName, setGuestName] = useState<string>('');
 
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
@@ -39,34 +38,34 @@ function LoginPageInner() {
 
     try {
       if (mode === 'guest') {
-        if (!guestName.trim()) {
-          setErrorMsg('Nama tamu wajib diisi.');
-          setLoading(false);
-          return;
-        }
-        await signIn('credentials', {
-          redirect: true,
-          callbackUrl,
-          loginType: 'guest', // ✅ guest
-          guestName,
-        });
+        // Seharusnya tidak pernah masuk sini karena guest tidak pakai form
+        setLoading(false);
         return;
       }
 
-      // staff & pkwt → jalur yang sama di authorize (loginType: 'staff')
       if (!email.trim() || !password.trim()) {
         setErrorMsg('Email dan password wajib diisi.');
         setLoading(false);
         return;
       }
 
-      await signIn('credentials', {
-        redirect: true,
-        callbackUrl,
-        loginType: 'staff', // ✅ pkwt juga dianggap staff untuk proses login
+      // ⬇⬇⬇ PERUBAHAN DI SINI:
+      // - tidak pakai callbackUrl dari query
+      // - kita kontrol redirect sendiri (force ke dashboard '/')
+      const res = await signIn('credentials', {
+        redirect: false,
         email,
         password,
       });
+
+      if (res?.error) {
+        setErrorMsg('Email atau password tidak sesuai.');
+        setLoading(false);
+        return;
+      }
+
+      // login sukses → arahkan SELALU ke dashboard utama
+      window.location.href = '/'; // ganti kalau dashboard-mu bukan '/'
     } catch {
       setErrorMsg('Gagal masuk. Coba lagi.');
       setLoading(false);
@@ -75,10 +74,8 @@ function LoginPageInner() {
 
   return (
     <main className="min-h-dvh relative flex items-center justify-center p-4">
-      {/* Overlay gelap tipis untuk kontras di atas video bg */}
       <div className="absolute inset-0 bg-gradient-to-b from-slate-900/50 via-slate-900/30 to-slate-900/50 pointer-events-none" />
 
-      {/* Kartu login */}
       <div className="relative w-full max-w-4xl grid md:grid-cols-2 gap-0 rounded-2xl overflow-hidden shadow-2xl border border-white/10 backdrop-blur-xl bg-white/10">
         {/* Panel brand */}
         <div className="hidden md:flex flex-col justify-between p-8 bg-gradient-to-br from-emerald-600/90 via-emerald-700/80 to-emerald-900/80 text-white">
@@ -116,7 +113,7 @@ function LoginPageInner() {
           </div>
         </div>
 
-        {/* Panel form */}
+        {/* Panel form / guest menu */}
         <div className="p-6 md:p-8 bg-white/80 dark:bg-slate-900/70 backdrop-blur-xl">
           {/* Logo mobile */}
           <div className="md:hidden mb-6 flex items-center gap-3">
@@ -136,31 +133,31 @@ function LoginPageInner() {
           <div className="grid grid-cols-3 gap-2 mb-6">
             <button
               type="button"
-              onClick={() => setMode('pkwt')}
+              onClick={() => setMode('KARPEL')}
               className={[
                 'flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold border transition',
-                mode === 'pkwt'
+                mode === 'KARPEL'
                   ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-600/20'
                   : 'bg-white/80 dark:bg-slate-900/60 text-slate-700 dark:text-slate-200 border-slate-200/70 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800',
               ].join(' ')}
             >
               <ShieldCheck className="w-4 h-4" />
-              PKWT Tekpol
+              KARPEL Tekpol
             </button>
 
             <button
               type="button"
-              onClick={() => setMode('staff')}
+              onClick={() => setMode('KARPIM')}
               className={[
                 'flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold border transition',
-                mode === 'staff'
+                mode === 'KARPIM'
                   ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-600/20'
                   : 'bg-white/80 dark:bg-slate-900/60 text-slate-700 dark:text-slate-200 border-slate-200/70 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800',
               ].join(' ')}
               title="Karyawan, Kasubag, Kabag"
             >
               <BriefcaseBusiness className="w-4 h-4" />
-              Staff Tekpol
+              KARPIM Tekpol
             </button>
 
             <button
@@ -178,105 +175,109 @@ function LoginPageInner() {
             </button>
           </div>
 
-          {/* Headline Form */}
+          {/* Headline */}
           <div className="mb-4">
             <h2 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">
-              {mode === 'staff' && 'Masuk Staff Tekpol'}
-              {mode === 'pkwt' && 'Masuk PKWT Tekpol'}
-              {mode === 'guest' && 'Masuk sebagai Tamu'}
+              {mode === 'KARPIM' && 'Masuk Karpim Tekpol'}
+              {mode === 'KARPEL' && 'Masuk Karpim Tekpol'}
+              {mode === 'guest' && 'Layanan untuk Tamu'}
             </h2>
             <p className="text-sm text-slate-500">
               {mode === 'guest'
-                ? 'Cukup isi nama saja untuk mengajukan permohonan akses (butuh persetujuan Kasubag & Kabag).'
+                ? 'Tamu tidak perlu akun. Ajukan permohonan dan cek status menggunakan Kode + PIN permohonan.'
                 : 'Masuk dengan email @tekpol dan password Anda.'}
             </p>
           </div>
 
-          {/* Form */}
-          <form className="space-y-4" onSubmit={handleSubmit}>
-            {mode !== 'guest' ? (
-              <>
-                <div className="relative">
-                  <label htmlFor="email" className="sr-only">
-                    Email
-                  </label>
-                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                    <Mail className="w-4 h-4 text-slate-400" />
-                  </div>
-                  <input
-                    id="email"
-                    type="email"
-                    autoComplete="email"
-                    required
-                    value={email}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                      setEmail(e.target.value)
-                    }
-                    placeholder="nama@tekpol.local"
-                    className="w-full rounded-lg border border-slate-300/70 dark:border-slate-700 bg-white/80 dark:bg-slate-900/60 pl-9 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500/50"
-                  />
-                </div>
-
-                <div className="relative">
-                  <label htmlFor="password" className="sr-only">
-                    Password
-                  </label>
-                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                    <Lock className="w-4 h-4 text-slate-400" />
-                  </div>
-                  <input
-                    id="password"
-                    type="password"
-                    autoComplete="current-password"
-                    required
-                    value={password}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                      setPassword(e.target.value)
-                    }
-                    placeholder="••••••••"
-                    className="w-full rounded-lg border border-slate-300/70 dark:border-slate-700 bg-white/80 dark:bg-slate-900/60 pl-9 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500/50"
-                  />
-                </div>
-              </>
-            ) : (
+          {mode === 'guest' ? (
+            // MODE TAMU
+            <div className="space-y-3">
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                Silakan pilih menu di bawah ini:
+              </p>
+              <div className="grid gap-2">
+                <Link
+                  href="/guest/request"
+                  className="w-full inline-flex items-center justify-between rounded-lg border border-emerald-500/60 bg-emerald-50/80 dark:bg-emerald-900/40 px-4 py-2 text-sm font-semibold text-emerald-800 dark:text-emerald-50 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition"
+                >
+                  <span>Ajukan permohonan sebagai Tamu</span>
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+                <Link
+                  href="/guest/track"
+                  className="w-full inline-flex items-center justify-between rounded-lg border border-slate-300/70 dark:border-slate-700 bg-white/80 dark:bg-slate-900/60 px-4 py-2 text-sm font-semibold text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+                >
+                  <span>Cek status permohonan (Kode + PIN)</span>
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+              <p className="mt-2 text-[11px] text-slate-500 leading-relaxed">
+                Setelah mengisi permohonan, Anda akan mendapatkan Kode &amp; PIN. Simpan baik-baik untuk
+                pengecekan status di kemudian hari.
+              </p>
+            </div>
+          ) : (
+            // MODE STAFF / PKWT: FORM LOGIN
+            <form className="space-y-4" onSubmit={handleSubmit}>
               <div className="relative">
-                <label htmlFor="guestName" className="sr-only">
-                  Nama
+                <label htmlFor="email" className="sr-only">
+                  Email
                 </label>
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                  <UserRound className="w-4 h-4 text-slate-400" />
+                  <Mail className="w-4 h-4 text-slate-400" />
                 </div>
                 <input
-                  id="guestName"
-                  type="text"
+                  id="email"
+                  type="email"
+                  autoComplete="email"
                   required
-                  value={guestName}
+                  value={email}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setGuestName(e.target.value)
+                    setEmail(e.target.value)
                   }
-                  placeholder="Nama lengkap"
+                  placeholder="nama@tekpol.local"
                   className="w-full rounded-lg border border-slate-300/70 dark:border-slate-700 bg-white/80 dark:bg-slate-900/60 pl-9 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500/50"
                 />
               </div>
-            )}
 
-            {errorMsg && (
-              <div className="text-sm text-red-600 dark:text-red-400">
-                {errorMsg}
+              <div className="relative">
+                <label htmlFor="password" className="sr-only">
+                  Password
+                </label>
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                  <Lock className="w-4 h-4 text-slate-400" />
+                </div>
+                <input
+                  id="password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setPassword(e.target.value)
+                  }
+                  placeholder="••••••••"
+                  className="w-full rounded-lg border border-slate-300/70 dark:border-slate-700 bg-white/80 dark:bg-slate-900/60 pl-9 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500/50"
+                />
               </div>
-            )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 text-sm font-semibold shadow-lg shadow-emerald-600/20 transition disabled:opacity-60"
-            >
-              {mode === 'guest' ? 'Ajukan sebagai Tamu' : 'Masuk'}
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </form>
+              {errorMsg && (
+                <div className="text-sm text-red-600 dark:text-red-400">
+                  {errorMsg}
+                </div>
+              )}
 
-          {/* Hint footer */}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 text-sm font-semibold shadow-lg shadow-emerald-600/20 transition disabled:opacity-60"
+              >
+                Masuk
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </form>
+          )}
+
           <div className="mt-6 text-[11px] text-slate-500 leading-relaxed">
             Dengan masuk, Anda menyetujui kebijakan keamanan internal TEKPOL. Aktivitas diaudit.
           </div>

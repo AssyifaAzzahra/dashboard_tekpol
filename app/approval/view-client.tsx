@@ -3,6 +3,7 @@
 
 import React, { useState } from 'react';
 import { ShieldCheck, XCircle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import TekpolTile, { StatusPill } from '@/components/ui/TekpolTile';
 
 type Role = 'PKWT' | 'KARYAWAN' | 'KASUBAG' | 'KABAG' | 'GUEST';
@@ -27,7 +28,7 @@ type Approval = {
   role: Role;
   decision: Decision;
   note?: string | null;
-  decidedAt?: string | null;
+  decidedAt?: string | Date | null;
   approver: User;
 };
 
@@ -35,14 +36,15 @@ type Request = {
   id: string;
   type: 'PKWT' | 'GUEST';
   appId: string;
-  requesterId: string;
+  requesterId: string | null;
+  guestName?: string | null;
   picId?: string | null;
   reason?: string | null;
   division?: string | null;
   status: Decision;
   rejectionNote?: string | null;
   app: App;
-  requester: User;
+  requester?: User | null;
   approvals: Approval[];
   pic: User | null;
 };
@@ -54,6 +56,7 @@ export default function ApprovalClient({
   role: Role;
   rows: Request[];
 }) {
+  const router = useRouter();
   const [loadingIds, setLoadingIds] = useState<string[]>([]);
 
   async function decide(
@@ -66,20 +69,26 @@ export default function ApprovalClient({
         : undefined;
 
     setLoadingIds((s) => [...s, id]);
+
     try {
-      const res = await fetch('/api/approval', {
-        method: 'PATCH', // <-- sesuai API baru
+      const res = await fetch(`/api/requests/${id}/approve`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, decision, note }),
+        body: JSON.stringify({ decision, note }),
       });
-      const json = await res.json().catch(() => ({} as unknown));
+
+      const data = await res.json().catch(() => ({} as any));
+
       if (!res.ok) {
-        throw new Error((json as { error?: string })?.error || 'Gagal memproses');
+        throw new Error(data?.error || data?.message || 'Gagal memproses');
       }
-      // sederhana: reload untuk menyegarkan daftar
-      window.location.reload();
+
+      // sukses → refresh data, posisi tetap di halaman Approval
+      router.refresh();
     } catch (e) {
-      alert((e as Error).message);
+      const msg = (e as Error).message || 'Terjadi kesalahan saat approve';
+      alert(msg);
+      console.error('Error approve request:', e);
     } finally {
       setLoadingIds((s) => s.filter((x) => x !== id));
     }
@@ -98,12 +107,16 @@ export default function ApprovalClient({
         {rows.map((r) => {
           const you =
             r.approvals.find((a) => a.role === role) ?? r.approvals[0];
+
           const pending =
             r.status === 'PENDING' &&
             you?.decision !== 'APPROVED' &&
             you?.decision !== 'REJECTED';
 
           const busy = loadingIds.includes(r.id);
+
+          const requesterLabel =
+            r.requester?.name ?? r.guestName ?? 'Tamu';
 
           return (
             <TekpolTile
@@ -115,7 +128,9 @@ export default function ApprovalClient({
                 <div className="text-xs text-slate-400 space-y-1">
                   <div>
                     Requester:{' '}
-                    <span className="text-slate-200">{r.requester.name}</span>
+                    <span className="text-slate-200">
+                      {requesterLabel}
+                    </span>
                   </div>
                   {r.division && (
                     <div>
@@ -131,7 +146,8 @@ export default function ApprovalClient({
                   )}
                   {r.pic && (
                     <div>
-                      PIC: <span className="text-slate-200">{r.pic.name}</span>
+                      PIC:{' '}
+                      <span className="text-slate-200">{r.pic.name}</span>
                     </div>
                   )}
                 </div>

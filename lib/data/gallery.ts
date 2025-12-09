@@ -399,43 +399,7 @@ export const GALLERY_ITEMS: GalleryItem[] = [
     caption: '',
     date: '',
   },
-
-  // ==============================
-  // 📘 PELATIHAN
-  // ==============================
-  {
-    id: 'pelatihan1',
-    title: '',
-    category: 'Pelatihan',
-    image: '/images/galeri/pelatihan1.jpg',
-    caption: '',
-    date: '',
-  },
-  {
-    id: 'pelatihan2',
-    title: '',
-    category: 'Pelatihan',
-    image: '/images/galeri/pelatihan2.jpg',
-    caption: '',
-    date: '',
-  },
-  {
-    id: 'pelatihan3',
-    title: '',
-    category: 'Pelatihan',
-    image: '/images/galeri/pelatihan3.jpg',
-    caption: '',
-    date: '',
-  },
-  {
-    id: 'pelatihan4',
-    title: '',
-    category: 'Pelatihan',
-    image: '/images/galeri/pelatihan4.jpg',
-    caption: '',
-    date: '',
-  },
-
+  
   // ==============================
   // 🎉 MILAD
   // ==============================

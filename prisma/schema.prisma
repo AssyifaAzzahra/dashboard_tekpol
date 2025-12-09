@@ -32,46 +32,59 @@ enum Decision {
 }
 
 model User {
-  id           String     @id @default(cuid())
+  id           String   @id @default(cuid())
   name         String
-  email        String?    @unique
+  email        String?  @unique
   passwordHash String?
   role         Role
-  isPic        Boolean    @default(false)
-  createdAt    DateTime   @default(now())
+  isPic        Boolean  @default(false)
+  createdAt    DateTime @default(now())
 
   // relasi
-  requests     Request[]  @relation("RequestsByUser")  // sebagai requester
-  approvals    Approval[]
-  picRequests  Request[]  @relation("PicUser")         // sebagai PIC  <<--- TAMBAHAN INI
+  requests    Request[]  @relation("RequestsByUser") // sebagai requester (user login)
+  approvals   Approval[]
+  picRequests Request[]  @relation("PicUser") // sebagai PIC
 }
 
 model App {
-  id          String   @id @default(cuid())
-  name        String   @unique
+  id          String    @id @default(cuid())
+  name        String    @unique
   category    Category
-  username    String
-  password    String
+  username    String       // <--- username untuk akses aplikasi
+  password    String       // <--- password untuk akses aplikasi
   description String?
   requests    Request[]
 }
 
 model Request {
-  id            String      @id @default(cuid())
-  type          RequestType
-  requester     User        @relation("RequestsByUser", fields: [requesterId], references: [id], onDelete: Cascade)
-  requesterId   String
-  app           App         @relation(fields: [appId], references: [id], onDelete: Cascade)
+  id   String      @id @default(cuid())
+  type RequestType
+
+  // requester (kalau user login)
+  requester   User?   @relation("RequestsByUser", fields: [requesterId], references: [id], onDelete: Cascade)
+  requesterId String?
+
+  // aplikasi yang diminta (untuk dropdown nama apps)
+  app           App        @relation(fields: [appId], references: [id], onDelete: Cascade)
   appId         String
-  pic           User?       @relation("PicUser", fields: [picId], references: [id])  // relasi ke PIC
+
+  pic           User?      @relation("PicUser", fields: [picId], references: [id])
   picId         String?
   reason        String?
   division      String?
-  status        Decision    @default(PENDING)
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  status        Decision   @default(PENDING)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
   approvals     Approval[]
   rejectionNote String?
+
+  // GUEST TANPA LOGIN
+  guestName    String?      // nama guest yang mengajukan
+  trackingCode String? @unique
+  trackingPin  String?
+
+  // ⬇⬇⬇ TAMBAHAN OPSIONAL: supaya bisa kirim username/password ke guest via email
+  guestEmail   String?      // email guest untuk kirim kredensial
 }
 
 model Approval {

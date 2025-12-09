@@ -1,0 +1,140 @@
+// app/api/guest-requests/route.ts
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { RequestType, Category, Role } from "@prisma/client";
+import { z } from "zod";
+
+// Skema body permohonan tamu
+const GuestRequestSchema = z.object({
+  guestName: z.string().min(1, "Nama tamu wajib diisi"),
+  appName: z.string().min(1, "Nama aplikasi wajib diisi"),
+  division: z.string().optional(),
+  reason: z.string().optional(),
+});
+
+// Generator kode tracking (8 karakter huruf/angka, tanpa karakter yang mirip)
+function generateTrackingCode(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+  for (let i = 0; i < 8; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return code;
+}
+
+// PIN 4 digit
+function generatePin(): string {
+  return Math.floor(1000 + Math.random() * 9000).toString();
+}
+
+export async function POST(req: Request) {
+  try {
+    const json = await req.json();
+    const parsed = GuestRequestSchema.safeParse(json);
+
+    if (!parsed.success) {
+      const firstError =
+        parsed.error.issues[0]?.message ?? "Data tidak valid";
+      return NextResponse.json(
+        { message: firstError },
+        { status: 400 }
+      );
+    }
+
+    const {
+      guestName,
+      appName,
+      division,
+      reason,
+    } = parsed.data;
+
+    // 1️⃣ Cari App berdasarkan name; kalau belum ada, buat baru
+    let app = await prisma.app.findFirst({
+      where: { name: appName.trim() },
+    });
+
+    if (!app) {
+      app = await prisma.app.create({
+        data: {
+          name: appName.trim(),
+          category: Category.HO, // default HO
+          username: "-",         // placeholder
+          password: "-",         // placeholder
+          description: null,
+        },
+      });
+    }
+
+    // 2️⃣ Generate trackingCode unik
+    let trackingCode = generateTrackingCode();
+    let existing = await prisma.request.findFirst({
+      where: { trackingCode },
+      select: { id: true },
+    });
+
+    while (existing) {
+      trackingCode = generateTrackingCode();
+      existing = await prisma.request.findFirst({
+        where: { trackingCode },
+        select: { id: true },
+      });
+    }
+
+    const trackingPin = generatePin();
+
+    // 3️⃣ Buat Request + Approval untuk KASUBAG & KABAG dalam satu transaksi
+    const request = await prisma.$transaction(async (tx) => {
+      // 3a. Buat request GUEST
+      const req = await tx.request.create({
+        data: {
+          type: RequestType.GUEST,
+          appId: app.id,
+          guestName: guestName.trim(),
+          division: division?.trim() || undefined,
+          reason: reason?.trim() || undefined,
+          trackingCode,
+          trackingPin,
+          // status default PENDING dari schema
+        },
+        select: {
+          id: true,
+          trackingCode: true,
+          trackingPin: true,
+          createdAt: true,
+        },
+      });
+
+      // 3b. Cari semua user yang berperan sebagai KASUBAG & KABAG
+      const approvers = await tx.user.findMany({
+        where: {
+          role: {
+            in: [Role.KASUBAG, Role.KABAG],
+          },
+        },
+        select: { id: true, role: true },
+      });
+
+      // 3c. Buat baris Approval untuk tiap approver
+      if (approvers.length > 0) {
+        await tx.approval.createMany({
+          data: approvers.map((u) => ({
+            requestId: req.id,
+            approverId: u.id,
+            role: u.role,
+            // decision default PENDING (dari schema)
+          })),
+        });
+      }
+
+      return req;
+    });
+
+    return NextResponse.json(request, { status: 201 });
+  } catch (err) {
+    console.error("Error creating guest request:", err);
+    return NextResponse.json(
+      { message: "Terjadi kesalahan pada server" },
+      { status: 500 }
+    );
+  }
+}

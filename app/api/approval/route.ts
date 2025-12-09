@@ -1,125 +1,169 @@
 // app/api/approval/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
-type Role = "PKWT" | "KARYAWAN" | "KASUBAG" | "KABAG" | "GUEST";
+type Decision = "PENDING" | "APPROVED" | "REJECTED";
 
-const PatchBody = z.object({
-  id: z.string().min(1),
-  decision: z.preprocess(
-    (v) => (typeof v === "string" ? v.toUpperCase() : v),
-    z.enum(["APPROVED", "REJECTED"])
-  ),
-  note: z.string().optional().default(""),
+const BodySchema = z.object({
+  id: z.string(), // requestId
+  decision: z.enum(["APPROVED", "REJECTED"]),
+  note: z.string().optional(),
 });
 
-export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session || !session.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+/**
+ * GET /api/approval
+ * Dipakai halaman Approval (Kabag/Kasubag) untuk ambil list request.
+ */
+export async function GET(_req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    // Kalau belum login, kirim array kosong supaya front-end tidak error
+    if (!session || !session.user?.id) {
+      return NextResponse.json([], { status: 200 });
+    }
+
+    const approverId = session.user.id;
+
+    const requests = await prisma.request.findMany({
+      where: {
+        approvals: {
+          some: { approverId },
+        },
+      },
+      include: {
+        app: true,
+        requester: true,
+        pic: true,
+        approvals: {
+          include: {
+            approver: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    return NextResponse.json(requests, { status: 200 });
+  } catch (err) {
+    console.error("Error in GET /api/approval:", err);
+    return NextResponse.json([], { status: 500 });
   }
-
-  const role = (session.user.role ?? "GUEST") as Role;
-  const userId = session.user.id;
-
-  // filter request berdasarkan role
-  let where: Record<string, unknown> = { id: "__none__" };
-  if (role === "KARYAWAN") where = { type: "PKWT", picId: userId };
-  else if (role === "KASUBAG" || role === "KABAG") where = { type: "GUEST" };
-
-  const rows = await prisma.request.findMany({
-    where,
-    include: {
-      app: true,
-      requester: true,
-      approvals: { include: { approver: true } },
-      pic: true,
-    },
-    orderBy: { createdAt: "desc" },
-  });
-
-  return NextResponse.json(rows);
 }
 
-export async function PATCH(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session || !session.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  let raw: unknown;
+/**
+ * PATCH /api/approval
+ * Dipanggil ketika Kabag/Kasubag klik Approve / Reject.
+ */
+export async function PATCH(req: NextRequest) {
   try {
-    raw = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Payload tidak valid" }, { status: 400 });
-  }
-  const parsed = PatchBody.safeParse(raw);
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Payload tidak valid" }, { status: 400 });
-  }
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-  const { id, decision, note } = parsed.data;
-  const role = (session.user.role ?? "GUEST") as Role;
-  const userId = session.user.id;
+    const body = await req.json();
+    const parsed = BodySchema.safeParse(body);
 
-  const requestRow = await prisma.request.findUnique({
-    where: { id },
-    include: { approvals: true },
-  });
-  if (!requestRow) {
-    return NextResponse.json({ error: "Request tidak ditemukan" }, { status: 404 });
-  }
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Data tidak valid" },
+        { status: 400 },
+      );
+    }
 
-  // cari baris approval sesuai role user
-  const myApproval = requestRow.approvals.find((a) => {
-    if (role === "KARYAWAN") return a.role === "KARYAWAN" && a.approverId === userId;
-    if (role === "KASUBAG") return a.role === "KASUBAG";
-    if (role === "KABAG") return a.role === "KABAG";
-    return false;
-  });
-  if (!myApproval) {
+    const { id: requestId, decision, note } = parsed.data;
+
+    // Pastikan request ada
+    const requestData = await prisma.request.findUnique({
+      where: { id: requestId },
+      include: { approvals: true },
+    });
+
+    if (!requestData) {
+      return NextResponse.json(
+        { error: "Request tidak ditemukan" },
+        { status: 404 },
+      );
+    }
+
+    // Ambil satu approval saja untuk request ini
+    const approval = await prisma.approval.findFirst({
+      where: { requestId },
+    });
+
+    if (!approval) {
+      return NextResponse.json(
+        { error: "Approval untuk request ini tidak ditemukan" },
+        { status: 404 },
+      );
+    }
+
+    // Transaction: update approval + status request
+    await prisma.$transaction(async (tx) => {
+      // 1. update approval ini
+      await tx.approval.update({
+        where: { id: approval.id },
+        data: {
+          decision,
+          note,
+          decidedAt: new Date(),
+        },
+      });
+
+      // 2. ambil semua approval lagi
+      const approvals = await tx.approval.findMany({
+        where: { requestId },
+      });
+
+      const anyRejected = approvals.some(
+        (a: { decision: Decision }) => a.decision === "REJECTED",
+      );
+
+      if (anyRejected) {
+        await tx.request.update({
+          where: { id: requestId },
+          data: {
+            status: "REJECTED",
+            rejectionNote: note || null,
+          },
+        });
+        return;
+      }
+
+      const allApproved = approvals.every(
+        (a: { decision: Decision }) => a.decision === "APPROVED",
+      );
+
+      if (allApproved) {
+        await tx.request.update({
+          where: { id: requestId },
+          data: {
+            status: "APPROVED",
+            rejectionNote: null,
+          },
+        });
+      } else {
+        await tx.request.update({
+          where: { id: requestId },
+          data: {
+            status: "PENDING",
+          },
+        });
+      }
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("Error in PATCH /api/approval:", err);
     return NextResponse.json(
-      { error: "Anda tidak berhak meng-approve request ini" },
-      { status: 403 }
+      { error: "Terjadi kesalahan pada server" },
+      { status: 500 },
     );
-  }
-
-  await prisma.approval.update({
-    where: { id: myApproval.id },
-    data: { decision, note, decidedAt: new Date() },
-  });
-
-  // Jika reject -> request langsung REJECTED
-  if (decision === "REJECTED") {
-    const updated = await prisma.request.update({
-      where: { id },
-      data: { status: "REJECTED", rejectionNote: note },
-    });
-    return NextResponse.json(updated);
-  }
-
-  // Jika approve
-  if (requestRow.type === "PKWT") {
-    // PKWT: cukup PIC setujui
-    const updated = await prisma.request.update({
-      where: { id },
-      data: { status: "APPROVED" },
-    });
-    return NextResponse.json(updated);
-  } else {
-    // GUEST: perlu KASUBAG & KABAG Approved
-    const approvals = await prisma.approval.findMany({ where: { requestId: id } });
-    const bothApproved = approvals
-      .filter((a) => a.role === "KASUBAG" || a.role === "KABAG")
-      .every((a) => a.decision === "APPROVED");
-
-    const updated = await prisma.request.update({
-      where: { id },
-      data: { status: bothApproved ? "APPROVED" : "PENDING" },
-    });
-    return NextResponse.json(updated);
   }
 }

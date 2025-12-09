@@ -14,7 +14,6 @@ import { PKS_LIST, getPksDetail } from '@/lib/data/pks';
 import NewsSection from './NewsSection';
 import { useSession } from 'next-auth/react';
 
-// Client components lain
 import AppsClient from '@/app/apps/credentials/view-client';
 import RequestFormClient from '@/app/info-login/request-form-client';
 import ApprovalClient from '@/app/approval/view-client';
@@ -39,7 +38,7 @@ type User = {
   email?: string | null;
 };
 
-// ====== APPROVAL UNTUK INFO-LOGIN (MyReq) ======
+// ====== APPROVAL UNTUK INFO-LOGIN (MyReq di AppsClient) ======
 type ApprovalInfo = {
   id: string;
   requestId: string;
@@ -47,8 +46,6 @@ type ApprovalInfo = {
   role: Role;
   decision: Decision;
   note?: string | null;
-  // Di sisi info-login (AppsClient) sebelumnya error karena
-  // sisi lain mengharapkan Date | null → kita pakai Date di sini
   decidedAt?: Date | null;
   approver?: User | null;
 };
@@ -61,8 +58,6 @@ type ApprovalRow = {
   role: Role;
   decision: Decision;
   note?: string | null;
-  // Di sisi ApprovalClient (view-client.tsx) dari error kelihatan
-  // dia mengharapkan string | null
   decidedAt?: string | null;
   approver: User;
 };
@@ -72,7 +67,8 @@ type BaseRequest = {
   id: string;
   type: 'PKWT' | 'GUEST';
   appId: string;
-  requesterId: string;
+  requesterId: string | null;   // boleh null utk tamu
+  guestName?: string | null;    // nama tamu
   picId?: string | null;
   reason?: string | null;
   division?: string | null;
@@ -80,17 +76,10 @@ type BaseRequest = {
   rejectionNote?: string | null;
 };
 
-// ====== REQUEST UNTUK INFO-LOGIN (MyReq) ======
-type MyReq = BaseRequest & {
-  app: App;
-  approvals: ApprovalInfo[];
-  pic: User | null;
-};
-
 // ====== REQUEST UNTUK HALAMAN APPROVAL (rows) ======
 type Row = BaseRequest & {
   app: App;
-  requester: User;
+  requester?: User | null;
   approvals: ApprovalRow[];
   pic: User | null;
 };
@@ -102,7 +91,7 @@ function InfoLoginPane() {
   const userName = data?.user?.name ?? '';
 
   const [apps, setApps] = useState<App[]>([]);
-  const [myReqs, setMyReqs] = useState<MyReq[]>([]);
+  const [myReqs, setMyReqs] = useState<any[]>([]);
   const [pics, setPics] = useState<User[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -125,10 +114,8 @@ function InfoLoginPane() {
 
         if (!alive) return;
 
-        // Di sini kita "anggap" bentuknya sudah cocok dengan MyReq
-        // (kalau mau lebih strict bisa map & convert decidedAt ke Date)
         setApps(appsJson as App[]);
-        setMyReqs(reqsJson as MyReq[]);
+        setMyReqs(reqsJson as any[]);
         setPics(picsJson as User[]);
       } finally {
         if (alive) setLoading(false);
@@ -152,10 +139,12 @@ function InfoLoginPane() {
     );
   }
 
-  if (role === 'KARYAWAN' || role === 'KASUBAG' || role === 'KABAG') {
+  // 👉 Hanya KARYAWAN yang boleh lihat daftar username/password
+  if (role === 'KARYAWAN') {
     return <AppsClient role={role} apps={apps} myReqs={myReqs} pics={pics} />;
   }
 
+  // 👉 PKWT, GUEST, KASUBAG, KABAG: tampilan sama seperti guest (form permohonan)
   return (
     <RequestFormClient
       role={role}
@@ -184,8 +173,6 @@ function ApprovalPane() {
         const json = await res.json();
         if (!alive) return;
 
-        // Di sini juga kita anggap sudah cocok dengan Row
-        // (kalau API kirim decidedAt string, ini nyambung dengan ApprovalRow)
         setRows(json as Row[]);
       } finally {
         if (alive) setLoading(false);
@@ -205,9 +192,6 @@ function ApprovalPane() {
     );
   }
 
-  // ApprovalClient di view-client.tsx mengharapkan:
-  // props: { role: Role; rows: Request[] }
-  // Di sini Row sudah disusun supaya struktur-nya sama dengan yang dia harapkan
   return <ApprovalClient role={role} rows={rows} />;
 }
 
@@ -218,7 +202,6 @@ export default function HomeRouter({
   forcedView?: HomeView;
   onViewChange?: (v: HomeView) => void;
 }) {
-  // state internal dipakai kalau tidak ada forcedView dari parent
   const [internalView, setInternalView] = useState<HomeView>('root');
   const [selectedPksId, setSelectedPksId] = useState<string | null>(null);
 
@@ -226,7 +209,6 @@ export default function HomeRouter({
 
   const setView = (v: HomeView) => {
     if (forcedView) {
-      // kalau parent yang kontrol state view
       onViewChange?.(v);
     } else {
       setInternalView(v);

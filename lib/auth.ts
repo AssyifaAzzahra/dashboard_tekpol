@@ -1,3 +1,4 @@
+// lib/auth.ts
 import type { NextAuthOptions } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import type { JWT } from "next-auth/jwt";
@@ -6,12 +7,10 @@ import bcrypt from "bcryptjs";
 import type { Role } from "@prisma/client";
 import { z } from "zod";
 
-// Skema kredensial supaya aman & tanpa 'any'
+// Skema kredensial: hanya untuk user internal
 const CredsSchema = z.object({
-  loginType: z.string().optional(),    // "staff" | "guest"
-  email: z.string().email().optional(),
-  password: z.string().min(1).optional(),
-  guestName: z.string().min(1).optional(),
+  email: z.string().email(),
+  password: z.string().min(1),
 });
 
 export const authOptions: NextAuthOptions = {
@@ -22,27 +21,14 @@ export const authOptions: NextAuthOptions = {
     Credentials({
       name: "credentials",
       credentials: {
-        loginType: { label: "Login Type", type: "text" },
         email: { label: "Email", type: "text" },
         password: { label: "Password", type: "password" },
-        guestName: { label: "Guest Name", type: "text" },
       },
       async authorize(raw) {
         const parsed = CredsSchema.safeParse(raw);
         if (!parsed.success) return null;
 
-        const { loginType = "staff", email, password, guestName } = parsed.data;
-
-        // Mode guest (tanpa password, user sementara)
-        if (loginType === "guest" && guestName) {
-          return {
-            id: "guest-" + Date.now().toString(),
-            name: guestName,
-          };
-        }
-
-        // Mode staff (email + password)
-        if (!email || !password) return null;
+        const { email, password } = parsed.data;
 
         const user = await prisma.user.findUnique({ where: { email } });
         if (!user || !user.passwordHash) return null;
@@ -50,37 +36,41 @@ export const authOptions: NextAuthOptions = {
         const ok = await bcrypt.compare(password, user.passwordHash);
         if (!ok) return null;
 
+        // Hanya user internal yang boleh login
         return {
           id: user.id,
           name: user.name,
           email: user.email ?? undefined,
+          role: user.role,
+          isPic: user.isPic,
         };
       },
     }),
   ],
 
   callbacks: {
-    // Simpan role & isPic ke token
     async jwt({ token, user }) {
+      // Saat pertama kali login, isi token dari user
       if (user) {
-        const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
-        // 'Role' diambil dari @prisma/client (enum). Boleh undefined untuk guest.
-        token.role = dbUser?.role as Role | undefined;
-        token.isPic = Boolean(dbUser?.isPic);
+        const u = user as typeof user & { role?: Role; isPic?: boolean };
+        token.role = u.role;
+        token.isPic = Boolean(u.isPic);
       }
-      return token as JWT;
+      return token as JWT & { role?: Role; isPic?: boolean };
     },
 
-    // Dorong ke session.user.*
     async session({ session, token }) {
       if (!session.user) session.user = {};
+
       session.user.id = token.sub;
       session.user.role = token.role as Role | undefined;
-      session.user.isPic = Boolean((token as JWT & { isPic?: boolean }).isPic);
+      session.user.isPic = Boolean(
+        (token as JWT & { isPic?: boolean }).isPic,
+      );
+
       return session;
     },
 
-    // Setelah login, arahkan ke Home ("/") secara default
     async redirect({ url, baseUrl }) {
       if (url.startsWith("/")) return baseUrl + url;
       try {

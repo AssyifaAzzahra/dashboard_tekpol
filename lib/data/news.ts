@@ -35,11 +35,11 @@ export const NEWS_LIST: NewsItem[] = [
   },
   {
     id: 'n4',
-    title: 'Mars PTPN',
+    title: 'PTPN IV REG III',
     tag: 'Social Media',
     date: '2025-11-01',
     excerpt: ' ',
-    body: 'Video Mars PTPN: materi K3 (LOTO, confined space, bahan kimia) dan hasil evaluasi.',
+    body: 'Video Kegiatan di PTPN IV Reg III ',
     image: '/images/home2.jpg',
     videoUrl: 'https://youtu.be/z_q4nYFotDI?si=_ysFCNA9Bh_ojGQI', // Mars PTPN
     labelAbove: 'Mars PTPN',                                      // judul di atas kartu

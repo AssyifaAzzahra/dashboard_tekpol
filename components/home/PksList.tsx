@@ -38,15 +38,6 @@ export default function PksList({
                   <Factory className="w-5 h-5 text-emerald-600" />
                   <h3 className="font-semibold leading-tight truncate">{pks.nama}</h3>
                 </div>
-                <p className="text-sm text-slate-500 mt-1">
-                  <span className="font-medium">Jenis:</span> {pks.jenis}
-                </p>
-                <p className="text-sm text-slate-500">
-                  <span className="font-medium">Alamat:</span> {pks.alamat}
-                </p>
-                <p className="text-sm text-slate-500">
-                  <span className="font-medium">Kapasitas:</span> {pks.kapasitasTbsPerJam} TBS/jam
-                </p>
               </div>
               <ChevronRight className="w-4 h-4 opacity-70 group-hover:translate-x-0.5 transition shrink-0" />
             </div>
