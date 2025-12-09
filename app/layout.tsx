@@ -37,7 +37,7 @@ export default function RootLayout({
         >
           {/* Jika punya versi webm, taruh source webm di atas mp4 */}
           {/* <source src="/images/bg.webm" type="video/webm" /> */}
-          <source src="/images/videoni.mp4" type="video/mp4" />
+          <source src="/images/videoni (1).mp4" type="video/mp4" />
         </video>
 
         {/* Konten aplikasi berada di atas overlay/video */}
