@@ -26,7 +26,8 @@
       "node",
       "next",
       "next/types/global",
-      "next-auth"
+      "next-auth",
+      "nodemailer"
     ],
     "incremental": true,
     "plugins": [
