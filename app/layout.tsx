@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Providers from "./providers"; // ⬅️ tambahkan
+import Providers from "./providers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,29 +23,21 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      {/* Gunakan class app-has-video untuk mengaktifkan video background */}
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased app-has-video`}>
-        {/* Background Video (loop, mute, autoplay, mobile-friendly) */}
-        {/* Pastikan file ada di: public/images/bg.mp4 */}
+      {/* HAPUS app-has-video dulu supaya simple */}
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        {/* VIDEO BACKGROUND */}
         <video
-          className="app-bg-video motion-reduce:hidden select-none"
+          className="fixed inset-0 w-full h-full object-cover pointer-events-none -z-10"
+          src="/images/bgvideo.mp4"
           autoPlay
           muted
           loop
           playsInline
-          preload="metadata"
-        >
-          {/* Jika punya versi webm, taruh source webm di atas mp4 */}
-          {/* <source src="/images/bg.webm" type="video/webm" /> */}
-          <source src="/images/videoni (1).mp4" type="video/mp4" />
-        </video>
+        />
 
-        {/* Konten aplikasi berada di atas overlay/video */}
+        {/* KONTEN APLIKASI */}
         <div className="relative z-10">
-          {/* ⬇️ Bungkus seluruh aplikasi dengan SessionProvider */}
-          <Providers>
-            {children}
-          </Providers>
+          <Providers>{children}</Providers>
         </div>
       </body>
     </html>
