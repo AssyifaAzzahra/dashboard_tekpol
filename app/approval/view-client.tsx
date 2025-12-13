@@ -38,6 +38,7 @@ type Request = {
   appId: string;
   requesterId: string | null;
   guestName?: string | null;
+  guestEmail?: string | null;
   picId?: string | null;
   reason?: string | null;
   division?: string | null;
@@ -63,6 +64,10 @@ export default function ApprovalClient({
     id: string,
     decision: 'APPROVED' | 'REJECTED'
   ): Promise<void> {
+    // 🔎 DEBUG: pastikan klik benar-benar masuk ke fungsi ini
+    console.log('DECIDE CALLED', { id, decision });
+    // alert('Klik tombol ' + decision); // boleh diaktifkan sementara kalau mau
+
     const note =
       decision === 'REJECTED'
         ? (window.prompt('Alasan penolakan? (opsional)') || '')
@@ -83,7 +88,6 @@ export default function ApprovalClient({
         throw new Error(data?.error || data?.message || 'Gagal memproses');
       }
 
-      // sukses → refresh data, posisi tetap di halaman Approval
       router.refresh();
     } catch (e) {
       const msg = (e as Error).message || 'Terjadi kesalahan saat approve';
@@ -95,7 +99,8 @@ export default function ApprovalClient({
   }
 
   return (
-    <main className="space-y-4">
+    // ⬇️ PENTING: z-index tinggi + pointer-events-auto
+    <main className="space-y-4 relative z-[100] pointer-events-auto">
       <div className="flex items-center gap-2 mb-1">
         <ShieldCheck className="w-5 h-5 text-emerald-400" />
         <h1 className="text-lg md:text-xl font-bold">

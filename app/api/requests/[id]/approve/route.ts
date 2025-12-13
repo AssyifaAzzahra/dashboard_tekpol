@@ -4,9 +4,10 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { sendCredentialEmail } from "@/lib/email"; // ⬅️ helper kirim email yg sudah kita buat sebelumnya
+import { sendCredentialEmail } from "@/lib/email";
 
 type Decision = "PENDING" | "APPROVED" | "REJECTED";
+type Role = "PKWT" | "KARYAWAN" | "KASUBAG" | "KABAG" | "GUEST";
 
 const Body = z.object({
   decision: z.enum(["APPROVED", "REJECTED"]),
@@ -17,7 +18,6 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  // ⬅️ sesuai Next.js 15/16: params adalah Promise
   const { id } = await params;
 
   const session = await getServerSession(authOptions);
@@ -26,7 +26,8 @@ export async function POST(
   }
 
   const approverId = session.user?.id;
-  if (!approverId) {
+  const role = session.user?.role as Role | undefined;
+  if (!approverId || !role) {
     return NextResponse.json({ error: "Invalid session" }, { status: 401 });
   }
 
@@ -34,15 +35,26 @@ export async function POST(
 
   const requestData = await prisma.request.findUnique({
     where: { id },
-    include: { approvals: true },
+    include: { approvals: true }, // scalar fields (type, etc) tetap ikut
   });
 
   if (!requestData) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  // 🔑 Bedakan: PKWT (PIC) vs GUEST (KASUBAG/KABAG)
+  const isGuest = requestData.type === "GUEST";
+
   const approval = await prisma.approval.findFirst({
-    where: { requestId: requestData.id, approverId },
+    where: isGuest
+      ? {
+          requestId: requestData.id,
+          role, // siapa pun yang login dengan role ini bisa approve
+        }
+      : {
+          requestId: requestData.id,
+          approverId, // untuk PKWT, tetap harus PIC yang benar
+        },
   });
 
   if (!approval) {
@@ -52,9 +64,7 @@ export async function POST(
     );
   }
 
-  // 🧠 Kita pakai transaction seperti sebelumnya, tapi
-  // sekarang transaction akan "mengembalikan" Request yang
-  // status-nya benar-benar berubah menjadi APPROVED (kalau ada).
+  // 🧠 Transaction + hitung status + optional kirim email
   const updatedRequestForEmail = await prisma.$transaction(async (tx) => {
     // 1️⃣ Update record Approval untuk approver ini
     await tx.approval.update({
@@ -75,7 +85,6 @@ export async function POST(
       (a: { decision: Decision }) => a.decision === "REJECTED"
     );
     if (anyRejected) {
-      // ❌ Kalau ada yang REJECTED → request REJECTED
       await tx.request.update({
         where: { id: requestData.id },
         data: {
@@ -84,7 +93,7 @@ export async function POST(
         },
       });
 
-      return null; // tidak perlu kirim credential
+      return null;
     }
 
     const allApproved = approvals.every(
@@ -92,8 +101,6 @@ export async function POST(
     );
 
     if (allApproved) {
-      // ✅ Semua approver sudah APPROVED → Request jadi APPROVED
-      // SEKALIGUS kita include app & requester supaya bisa kirim email di luar transaction
       const updated = await tx.request.update({
         where: { id: requestData.id },
         data: {
@@ -106,9 +113,8 @@ export async function POST(
         },
       });
 
-      return updated; // ⬅️ ini yang nanti kita pakai kirim credential
+      return updated;
     } else {
-      // Masih ada yang pending → status tetap PENDING
       await tx.request.update({
         where: { id: requestData.id },
         data: {
@@ -120,14 +126,10 @@ export async function POST(
     }
   });
 
-  // 3️⃣ Setelah transaction selesai, kalau updatedRequestForEmail
-  //    tidak null dan status-nya APPROVED → kirim username/password
+  // 3️⃣ Kirim credential kalau request final APPROVED
   if (updatedRequestForEmail && updatedRequestForEmail.status === "APPROVED") {
     const req = updatedRequestForEmail;
 
-    // Tentukan email tujuan:
-    // - kalau requester (user login) punya email → pakai itu
-    // - kalau tidak, pakai guestEmail di Request
     const emailTujuan = req.requester?.email ?? req.guestEmail ?? null;
 
     if (emailTujuan && req.app) {
@@ -144,7 +146,6 @@ export async function POST(
           `Gagal mengirim email credential untuk request ${req.id}:`,
           err
         );
-        // kita tidak mengubah status APPROVED walaupun email gagal
       }
     } else {
       console.warn(

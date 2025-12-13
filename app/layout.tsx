@@ -27,13 +27,14 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         {/* VIDEO BACKGROUND */}
         <video
-          className="fixed inset-0 w-full h-full object-cover pointer-events-none -z-10"
-          src="/images/bgvideo.mp4"
+          className="fixed inset-0 w-full h-full object-cover pointer-events-none z-0"
+          src="/images/videoni.mp4"
           autoPlay
           muted
           loop
           playsInline
         />
+
 
         {/* KONTEN APLIKASI */}
         <div className="relative z-10">
