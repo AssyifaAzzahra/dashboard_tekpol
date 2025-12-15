@@ -23,21 +23,22 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      {/* HAPUS app-has-video dulu supaya simple */}
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         {/* VIDEO BACKGROUND */}
-        <video
-          className="fixed inset-0 w-full h-full object-cover pointer-events-none z-0"
-          src="/images/videoni.mp4"
-          autoPlay
-          muted
-          loop
-          playsInline
-        />
+        <div className="fixed inset-0 -z-10 pointer-events-none">
+          <video
+            className="h-full w-full object-cover"
+            src="/images/videoni.mp4"
+            autoPlay
+            muted
+            loop
+            playsInline
+          />
+          <div className="absolute inset-0 bg-black/30" />
+        </div>
 
-
-        {/* KONTEN APLIKASI */}
-        <div className="relative z-10">
+        {/* KONTEN APLIKASI (cukup sekali) */}
+        <div className="relative z-10 pointer-events-auto min-h-screen">
           <Providers>{children}</Providers>
         </div>
       </body>

@@ -34,8 +34,8 @@ type Request = {
   id: string;
   type: "PKWT" | "GUEST";
   appId: string;
-  requesterId: string | null;    // ⬅️ boleh null
-  guestName?: string | null;     // ⬅️ nama tamu
+  requesterId: string | null;
+  guestName?: string | null;
   picId?: string | null;
   reason?: string | null;
   division?: string | null;
@@ -45,7 +45,7 @@ type Request = {
 
 type Row = Request & {
   app: App;
-  requester?: User | null;       // ⬅️ boleh null
+  requester?: User | null;
   approvals: (Approval & { approver: User })[];
   pic: User | null;
 };
@@ -75,5 +75,13 @@ export default async function ApprovalPage() {
     orderBy: { createdAt: "desc" },
   });
 
-  return <ApprovalClient role={role} rows={rows as Row[]} />;
+  /**
+   * ✅ PENTING:
+   * Next.js Client Component butuh props yang "plain" (JSON-serializable).
+   * Prisma sering bawa Date/object lain yang bikin hydration gagal -> button jadi "mati".
+   * Ini memastikan Date jadi string dan props aman.
+   */
+  const rowsPlain = JSON.parse(JSON.stringify(rows));
+
+  return <ApprovalClient role={role} rows={rowsPlain as Row[]} />;
 }
