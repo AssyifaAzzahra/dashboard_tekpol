@@ -11,9 +11,9 @@ const Body = z.object({
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> } // ✅ Next.js 16
 ) {
-  const id = params?.id;
+  const { id } = await context.params; // ✅ WAJIB await
 
   if (!id) {
     return NextResponse.json(
@@ -30,7 +30,10 @@ export async function POST(
   const { decision, note } = Body.parse(await request.json());
 
   const approval = await prisma.approval.findFirst({
-    where: { requestId: id, role: "KABAG" },
+    where: {
+      requestId: id,
+      role: "KABAG",
+    },
   });
 
   if (!approval) {
