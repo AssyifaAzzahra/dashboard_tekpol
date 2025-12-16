@@ -89,23 +89,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Approver belum diset" }, { status: 400 });
     }
 
-    const created = await prisma.request.create({
-      data: {
-        type: "GUEST" satisfies RequestType,
-        requesterId: userId,
-        appId: parsed.data.appId,
-        reason: parsed.data.reason,
-        division: parsed.data.division,
-        status: "PENDING" as Decision,
-        approvals: {
-          create: [
-            { approverId: kasubag.id, role: "KASUBAG", decision: "PENDING" },
-            { approverId: kabag.id, role: "KABAG", decision: "PENDING" },
-          ],
+const created = await prisma.request.create({
+  data: {
+    type: "GUEST",
+    requesterId: userId,
+    appId: parsed.data.appId,
+    reason: parsed.data.reason,
+    division: parsed.data.division,
+    status: "PENDING",
+    approvals: {
+      create: [
+        {
+          approverId: kabag.id,
+          role: "KABAG",
+          decision: "PENDING",
         },
-      },
-      include: { app: true, approvals: true, pic: true },
-    });
+      ],
+    },
+  },
+  include: {
+    app: true,
+    approvals: true,
+    pic: true,
+  },
+});
 
     return NextResponse.json(created, { status: 201 });
   }

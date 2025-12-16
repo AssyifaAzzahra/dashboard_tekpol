@@ -62,8 +62,3 @@ select,
 textarea {
   pointer-events: auto;
 }
-
-/* Jangan pernah matikan pointer events global */
-* {
-  pointer-events: auto;
-}

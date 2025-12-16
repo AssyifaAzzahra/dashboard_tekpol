@@ -49,7 +49,6 @@ function LoginPageInner() {
         return;
       }
 
-      // ⬇⬇⬇ PERUBAHAN DI SINI:
       // - tidak pakai callbackUrl dari query
       // - kita kontrol redirect sendiri (force ke dashboard '/')
       const res = await signIn('credentials', {
@@ -89,16 +88,23 @@ function LoginPageInner() {
               />
             </div>
             <div>
-              <div className="text-lg font-bold leading-tight">PTPN IV Regional III</div>
-              <div className="text-sm text-emerald-50/90">Divisi Teknik & Pengolahan</div>
+              <div className="text-lg font-bold leading-tight">
+                PTPN IV Regional III
+              </div>
+              <div className="text-sm text-emerald-50/90">
+                Divisi Teknik & Pengolahan
+              </div>
             </div>
           </div>
 
           <div className="space-y-3">
-            <h1 className="text-2xl font-extrabold tracking-tight">Dashboard TEKPOL</h1>
+            <h1 className="text-2xl font-extrabold tracking-tight">
+              Dashboard TEKPOL
+            </h1>
             <p className="text-emerald-50/90 leading-relaxed">
-              Akses terpusat untuk Apps HO & Regional. Kelola permohonan akses, approval PIC/Kasubag/Kabag,
-              serta lihat kredensial yang disetujui—semuanya dalam satu tempat.
+              Akses terpusat untuk Apps HO & Regional. Kelola permohonan akses,
+              approval PIC/Kasubag/Kabag, serta lihat kredensial yang
+              disetujui—semuanya dalam satu tempat.
             </p>
             <div className="mt-6 flex items-center gap-3 text-emerald-50/90">
               <Building2 className="w-5 h-5" />
@@ -211,9 +217,18 @@ function LoginPageInner() {
                   <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
+
+              {/* ✅ tombol kembali ke dashboard juga ditampilkan di mode tamu */}
+              <Link
+                href="/"
+                className="mt-1 w-full inline-flex items-center justify-center rounded-lg border border-slate-300/70 dark:border-slate-700 bg-white/80 dark:bg-slate-900/60 px-4 py-2 text-sm font-semibold text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+              >
+                ← Kembali ke Dashboard Utama
+              </Link>
+
               <p className="mt-2 text-[11px] text-slate-500 leading-relaxed">
-                Setelah mengisi permohonan, Anda akan mendapatkan Kode &amp; PIN. Simpan baik-baik untuk
-                pengecekan status di kemudian hari.
+                Setelah mengisi permohonan, Anda akan mendapatkan Kode &amp; PIN.
+                Simpan baik-baik untuk pengecekan status di kemudian hari.
               </p>
             </div>
           ) : (
@@ -275,11 +290,20 @@ function LoginPageInner() {
                 Masuk
                 <ArrowRight className="w-4 h-4" />
               </button>
+
+              {/* ✅ TOMBOL KEMBALI KE DASHBOARD UTAMA */}
+              <Link
+                href="/"
+                className="w-full inline-flex items-center justify-center rounded-lg border border-slate-300/70 dark:border-slate-700 bg-white/80 dark:bg-slate-900/60 px-4 py-2 text-sm font-semibold text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+              >
+                ← Kembali ke Dashboard Utama
+              </Link>
             </form>
           )}
 
           <div className="mt-6 text-[11px] text-slate-500 leading-relaxed">
-            Dengan masuk, Anda menyetujui kebijakan keamanan internal TEKPOL. Aktivitas diaudit.
+            Dengan masuk, Anda menyetujui kebijakan keamanan internal TEKPOL.
+            Aktivitas diaudit.
           </div>
         </div>
       </div>

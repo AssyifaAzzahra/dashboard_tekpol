@@ -75,13 +75,16 @@ export default async function ApprovalPage() {
     orderBy: { createdAt: "desc" },
   });
 
-  /**
-   * ✅ PENTING:
-   * Next.js Client Component butuh props yang "plain" (JSON-serializable).
-   * Prisma sering bawa Date/object lain yang bikin hydration gagal -> button jadi "mati".
-   * Ini memastikan Date jadi string dan props aman.
-   */
-  const rowsPlain = JSON.parse(JSON.stringify(rows));
-
-  return <ApprovalClient role={role} rows={rowsPlain as Row[]} />;
+  // ✅ Plain object aman (tanpa stringify seluruh object)
+  const rowsPlain = rows
+  .map((r) => ({
+    ...r,
+    createdAt: r.createdAt.toISOString(),
+    updatedAt: r.updatedAt.toISOString(),
+    approvals: r.approvals.map((a) => ({
+      ...a,
+      decidedAt: a.decidedAt ? a.decidedAt.toISOString() : null,
+    })),
+  }))
+  .filter((r) => typeof (r as any).id === "string" && (r as any).id.length > 0);
 }

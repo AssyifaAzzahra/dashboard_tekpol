@@ -1,38 +1,33 @@
-'use client';
+"use client";
 
-import { ReactNode } from 'react';
-import { ExternalLink } from 'lucide-react';
-import { cls } from '@/lib/utils';
+import { ReactNode } from "react";
+import { ExternalLink } from "lucide-react";
+import { cls } from "@/lib/utils";
 
 export function StatusPill({
   value,
 }: {
-  value?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'NONE';
+  value?: "PENDING" | "APPROVED" | "REJECTED" | "NONE";
 }) {
   const map: Record<string, string> = {
-    NONE: 'bg-slate-700/30 text-slate-200',
-    PENDING: 'bg-amber-500/15 text-amber-300',
-    APPROVED: 'bg-emerald-500/15 text-emerald-300',
-    REJECTED: 'bg-rose-500/15 text-rose-300',
+    NONE: "bg-slate-700/30 text-slate-200",
+    PENDING: "bg-amber-500/15 text-amber-300",
+    APPROVED: "bg-emerald-500/15 text-emerald-300",
+    REJECTED: "bg-rose-500/15 text-rose-300",
   };
 
   const label: Record<string, string> = {
-    NONE: 'Belum diajukan',
-    PENDING: 'Pending',
-    APPROVED: 'Approved',
-    REJECTED: 'Rejected',
+    NONE: "Belum diajukan",
+    PENDING: "Pending",
+    APPROVED: "Approved",
+    REJECTED: "Rejected",
   };
 
-  const clsx = map[value ?? 'NONE'] ?? map.NONE;
+  const clsx = map[value ?? "NONE"] ?? map.NONE;
 
   return (
-    <span
-      className={cls(
-        'px-2 py-1 rounded-md text-xs font-semibold',
-        clsx
-      )}
-    >
-      {label[value ?? 'NONE']}
+    <span className={cls("px-2 py-1 rounded-md text-xs font-semibold", clsx)}>
+      {label[value ?? "NONE"]}
     </span>
   );
 }
@@ -45,10 +40,11 @@ export default function TekpolTile({
   rightSlot,
   footer,
   onPrimary,
-  primaryText = 'Buka',
+  primaryText = "Buka",
   asButton = false,
   href,
   className,
+  overlay,
 }: {
   icon: ReactNode;
   title: string;
@@ -61,17 +57,22 @@ export default function TekpolTile({
   asButton?: boolean;
   href?: string;
   className?: string;
+  overlay?: ReactNode;
 }) {
   return (
     <div
       className={cls(
-        'group rounded-2xl border border-slate-200/60 dark:border-slate-800',
-        'bg-white/90 dark:bg-slate-900/90',
-        'px-4 py-3 md:px-5 md:py-4',
-        'shadow-sm hover:shadow-md transition',
-        className
+        "relative pointer-events-auto",
+        "group rounded-2xl border border-slate-200/60 dark:border-slate-800",
+        "bg-white/90 dark:bg-slate-900/90",
+        "px-4 py-3 md:px-5 md:py-4",
+        "shadow-sm hover:shadow-md transition",
+        className,
       )}
     >
+      {/* OVERLAY (loading, dll) */}
+      {overlay}
+
       {/* HEADER */}
       <div className="flex items-start gap-3">
         <div className="mt-1 shrink-0">{icon}</div>
@@ -88,24 +89,20 @@ export default function TekpolTile({
             )}
           </div>
 
-          {typeof desc === 'string' ? (
-            <p className="text-sm text-slate-400 mt-1 truncate">
-              {desc}
-            </p>
+          {typeof desc === "string" ? (
+            <p className="text-sm text-slate-400 mt-1 truncate">{desc}</p>
           ) : (
             desc
           )}
         </div>
 
         {/* STATUS */}
-        {rightSlot && (
-          <div className="shrink-0 ml-2">{rightSlot}</div>
-        )}
+        {rightSlot && <div className="shrink-0 ml-2">{rightSlot}</div>}
       </div>
 
       {/* FOOTER */}
       <div className="mt-3 flex items-center justify-between gap-3">
-        <div>{footer}</div>
+        <div className="relative z-[10] pointer-events-auto">{footer}</div>
 
         {asButton ? (
           <button

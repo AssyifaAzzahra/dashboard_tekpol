@@ -159,29 +159,24 @@ function InfoLoginPane() {
 // ----- Loader kecil untuk approval -----
 function ApprovalPane() {
   const { data } = useSession();
-  const role = (data?.user?.role ?? 'GUEST') as Role;
+  const role = (data?.user?.role ?? "GUEST") as Role;
 
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/approval", { cache: "no-store" });
+      const json = await res.json();
+      setRows(json as Row[]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    let alive = true;
-
-    (async () => {
-      try {
-        const res = await fetch('/api/approval', { cache: 'no-store' });
-        const json = await res.json();
-        if (!alive) return;
-
-        setRows(json as Row[]);
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-
-    return () => {
-      alive = false;
-    };
+    void load();
   }, []);
 
   if (loading) {
@@ -192,8 +187,9 @@ function ApprovalPane() {
     );
   }
 
-  return <ApprovalClient role={role} rows={rows} />;
+  return <ApprovalClient role={role} rows={rows} onDone={load} />;
 }
+
 
 export default function HomeRouter({
   forcedView,

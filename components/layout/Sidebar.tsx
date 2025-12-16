@@ -42,7 +42,7 @@ export default function Sidebar({
   const isLoggedIn = Boolean(data?.user?.id);
 
   const canSeeApproval =
-    role === 'KABAG' || role === 'KASUBAG' || (role === 'KARYAWAN' && isPic);
+    role === 'KABAG' || role === 'KASUBAG';
 
   const goHomeView = (view: HomeView) => {
     onSelect('home');
