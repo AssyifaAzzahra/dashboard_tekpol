@@ -4,15 +4,25 @@ import { prisma } from "@/lib/prisma";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(_req: NextRequest, ctx: { params: { slug: string } }) {
-  const slug = (ctx?.params?.slug ?? "").trim();
-  if (!slug) return NextResponse.json({ error: "Missing slug" }, { status: 400 });
+// ✅ Next.js 16: params harus Promise
+export async function GET(
+  _req: NextRequest,
+  context: { params: Promise<{ slug: string }> }
+) {
+  const { slug } = await context.params;
+  const safeSlug = (slug ?? "").trim();
+
+  if (!safeSlug) {
+    return NextResponse.json({ error: "Missing slug" }, { status: 400 });
+  }
 
   const post = await prisma.news.findFirst({
-    where: { slug, isPublished: true },
+    where: { slug: safeSlug, isPublished: true },
   });
 
-  if (!post) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!post) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 
   return NextResponse.json({
     id: post.id,

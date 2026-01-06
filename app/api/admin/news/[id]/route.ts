@@ -7,6 +7,7 @@ import { z } from "zod";
 
 export const runtime = "nodejs";
 
+/* ================== UTIL ================== */
 function jsonError(status: number, message: string, extra?: unknown) {
   return NextResponse.json(
     { error: status >= 500 ? "Internal Server Error" : "Bad Request", message, extra },
@@ -35,11 +36,11 @@ async function uniqueSlug(base: string, excludeId?: string) {
       select: { id: true },
     });
     if (!found) return slug;
-    i += 1;
-    slug = `${clean}-${i}`;
+    slug = `${clean}-${++i}`;
   }
 }
 
+/* ================== SCHEMA ================== */
 const UpdateSchema = z.object({
   title: z.string().min(1).optional(),
   excerpt: z.string().optional().nullable(),
@@ -49,17 +50,27 @@ const UpdateSchema = z.object({
   removeCover: z.coerce.boolean().optional(),
 });
 
-export async function PATCH(req: NextRequest, ctx: { params: { id: string } }) {
+/* =========================================================
+   NEXT 16 VALIDATOR EXPECTS:
+   context: { params: Promise<{ id: string }> }
+   ========================================================= */
+
+/* ================== PATCH ================== */
+export async function PATCH(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   const guard = await requireSuperadmin();
   if (!guard.ok) return guard.res;
 
   const actorId = guard.session.user?.id ?? null;
   const actorEmail = (guard.session.user?.email ?? null) as string | null;
 
-  const id = (ctx?.params?.id ?? "").trim();
-  if (!id) return jsonError(400, "Missing param: id");
+  const { id } = await context.params;
+  const safeId = (id || "").trim();
+  if (!safeId) return jsonError(400, "Missing param: id");
 
-  const before = await prisma.news.findUnique({ where: { id } });
+  const before = await prisma.news.findUnique({ where: { id: safeId } });
   if (!before) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const fd = await req.formData();
@@ -87,6 +98,7 @@ export async function PATCH(req: NextRequest, ctx: { params: { id: string } }) {
 
   const cover = fd.get("cover") as File | null;
   let newCoverUrl: string | null | undefined = undefined;
+
   if (cover && typeof cover === "object" && cover.size > 0) {
     const saved = await savePublicUpload(cover, "news");
     newCoverUrl = saved.urlPath;
@@ -97,7 +109,7 @@ export async function PATCH(req: NextRequest, ctx: { params: { id: string } }) {
 
     if (parsed.data.title !== undefined) {
       data.title = parsed.data.title;
-      data.slug = await uniqueSlug(parsed.data.title, id);
+      data.slug = await uniqueSlug(parsed.data.title, safeId);
     }
 
     if (parsed.data.excerpt !== undefined) {
@@ -119,7 +131,7 @@ export async function PATCH(req: NextRequest, ctx: { params: { id: string } }) {
     if (parsed.data.removeCover) data.coverImageUrl = null;
     if (newCoverUrl !== undefined) data.coverImageUrl = newCoverUrl;
 
-    const updated = await prisma.news.update({ where: { id }, data });
+    const updated = await prisma.news.update({ where: { id: safeId }, data });
 
     if ((newCoverUrl !== undefined || parsed.data.removeCover) && before.coverImageUrl) {
       await deletePublicUploadByUrl(before.coverImageUrl);
@@ -128,7 +140,7 @@ export async function PATCH(req: NextRequest, ctx: { params: { id: string } }) {
     await writeAuditLog({
       action: "UPDATE_NEWS",
       entity: "News",
-      entityId: id,
+      entityId: safeId,
       actorId,
       actorEmail,
       meta: { before, after: updated },
@@ -141,27 +153,32 @@ export async function PATCH(req: NextRequest, ctx: { params: { id: string } }) {
   }
 }
 
-export async function DELETE(_req: NextRequest, ctx: { params: { id: string } }) {
+/* ================== DELETE ================== */
+export async function DELETE(
+  _req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   const guard = await requireSuperadmin();
   if (!guard.ok) return guard.res;
 
   const actorId = guard.session.user?.id ?? null;
   const actorEmail = (guard.session.user?.email ?? null) as string | null;
 
-  const id = (ctx?.params?.id ?? "").trim();
-  if (!id) return jsonError(400, "Missing param: id");
+  const { id } = await context.params;
+  const safeId = (id || "").trim();
+  if (!safeId) return jsonError(400, "Missing param: id");
 
-  const before = await prisma.news.findUnique({ where: { id } });
+  const before = await prisma.news.findUnique({ where: { id: safeId } });
   if (!before) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   try {
-    await prisma.news.delete({ where: { id } });
+    await prisma.news.delete({ where: { id: safeId } });
     if (before.coverImageUrl) await deletePublicUploadByUrl(before.coverImageUrl);
 
     await writeAuditLog({
       action: "DELETE_NEWS",
       entity: "News",
-      entityId: id,
+      entityId: safeId,
       actorId,
       actorEmail,
       meta: { before },
