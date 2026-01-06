@@ -1,29 +1,37 @@
 // app/page.tsx
-'use client';
+"use client";
 
-import React, { useMemo, useState } from 'react';
-import { Search, ExternalLink, FileText } from 'lucide-react';
+import React, { useMemo, useState } from "react";
+import { Search, ExternalLink, FileText } from "lucide-react";
 
-import Sidebar from '@/components/layout/Sidebar';
-import ContentGrid from '@/components/content/ContentGrid';
-import AppHeader from '@/components/layout/AppHeader';
+import KegiatanSection from "@/components/gallery/KegiatanSection";
+import Sidebar from "@/components/layout/Sidebar";
+import ContentGrid from "@/components/content/ContentGrid";
+import AppHeader from "@/components/layout/AppHeader";
 
-import { CONTENT_MAP } from '@/lib/constants';
-import type { PathKey, LinkItem, HomeView } from '@/lib/types';
-import HomeRouter from '@/components/home/HomeRouter';
-import GallerySection from '@/components/gallery/GallerySection';
+import { CONTENT_MAP } from "@/lib/constants";
+import type { PathKey, LinkItem, HomeView } from "@/lib/types";
+import HomeRouter from "@/components/home/HomeRouter";
+
+// ✅ tambah import ini
+import TekpolAppsSection from "@/components/apps/TekpolAppsSection";
 
 type GroupItem = { id: string; title: string; children: LinkItem[] };
 function isGroupItem(it: unknown): it is GroupItem {
-  return typeof it === 'object' && it !== null && 'children' in it && Array.isArray((it as { children: unknown }).children);
+  return (
+    typeof it === "object" &&
+    it !== null &&
+    "children" in it &&
+    Array.isArray((it as { children: unknown }).children)
+  );
 }
 
 export default function Page() {
-  const [activeKey, setActiveKey] = useState<PathKey>('home');
-  const [search, setSearch] = useState('');
-  const [homeView, setHomeView] = useState<HomeView>('root'); // ⬅️ view internal Home
+  const [activeKey, setActiveKey] = useState<PathKey>("home");
+  const [search, setSearch] = useState("");
+  const [homeView, setHomeView] = useState<HomeView>("root");
 
-  const content = CONTENT_MAP[activeKey] ?? { title: 'Tidak ditemukan', items: [] };
+  const content = CONTENT_MAP[activeKey] ?? { title: "Tidak ditemukan", items: [] };
 
   const hasGroupedItems = useMemo(
     () => Array.isArray(content.items) && content.items.some((it) => isGroupItem(it)),
@@ -52,34 +60,34 @@ export default function Page() {
           activeKey={activeKey}
           onSelect={(k) => {
             setActiveKey(k);
-            setSearch('');
+            setSearch("");
           }}
           onGoHomeView={(v) => {
-            // pindahkan ke Home + set sub-view
-            setActiveKey('home');
+            setActiveKey("home");
             setHomeView(v);
           }}
         />
 
         <main className="space-y-4">
-          {activeKey === 'home' ? (
-            <HomeRouter
-              forcedView={homeView}
-              onViewChange={(v) => setHomeView(v)}
-            />
-          ) : activeKey === 'galeri' ? (
-            <GallerySection />
+          {activeKey === "home" ? (
+            <HomeRouter forcedView={homeView} onViewChange={(v) => setHomeView(v)} />
+          ) : activeKey === "galeri" ? (
+            <KegiatanSection />
+          ) : activeKey === "tekpol-apps" ? (
+            // ✅ INI YANG BIKIN APP ADMIN MUNCUL DI DASHBOARD
+            <TekpolAppsSection search={search} />
           ) : (
             <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/70 p-5">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                 <div>
                   <h1 className="text-xl font-bold">{content.title}</h1>
-                  {'subtitle' in content && (content as { subtitle?: string }).subtitle && (
+                  {"subtitle" in content && (content as { subtitle?: string }).subtitle && (
                     <p className="text-sm text-slate-500 mt-1">
                       {(content as { subtitle?: string }).subtitle}
                     </p>
                   )}
                 </div>
+
                 <div className="relative">
                   <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
@@ -93,7 +101,10 @@ export default function Page() {
 
               <div className="mt-5">
                 {hasGroupedItems ? (
-                  <ContentGrid bucket={content as unknown as { title: string; items: GroupItem[] }} search={search} />
+                  <ContentGrid
+                    bucket={content as unknown as { title: string; items: GroupItem[] }}
+                    search={search}
+                  />
                 ) : (
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {filteredFlatItems.map((item) => (
@@ -114,6 +125,7 @@ export default function Page() {
                               </span>
                             )}
                           </div>
+
                           <a
                             href={item.href}
                             target="_blank"
@@ -127,6 +139,7 @@ export default function Page() {
                         </div>
                       </article>
                     ))}
+
                     {filteredFlatItems.length === 0 && (
                       <div className="col-span-full text-center text-slate-500 py-10">
                         Tidak ada dokumen yang cocok.

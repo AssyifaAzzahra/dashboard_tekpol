@@ -62,12 +62,12 @@ export default function TekpolTile({
   return (
     <div
       className={cls(
-        "relative pointer-events-auto",
+        "relative",
         "group rounded-2xl border border-slate-200/60 dark:border-slate-800",
         "bg-white/90 dark:bg-slate-900/90",
         "px-4 py-3 md:px-5 md:py-4",
         "shadow-sm hover:shadow-md transition",
-        className,
+        className
       )}
     >
       {/* OVERLAY (loading, dll) */}
@@ -102,7 +102,7 @@ export default function TekpolTile({
 
       {/* FOOTER */}
       <div className="mt-3 flex items-center justify-between gap-3">
-        <div className="relative z-[10] pointer-events-auto">{footer}</div>
+        <div className="relative">{footer}</div>
 
         {asButton ? (
           <button

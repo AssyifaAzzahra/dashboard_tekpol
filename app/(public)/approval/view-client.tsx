@@ -4,6 +4,7 @@ import React, { useMemo, useState } from "react";
 import { ShieldCheck, XCircle } from "lucide-react";
 import TekpolTile, { StatusPill } from "@/components/ui/TekpolTile";
 import LoadingOverlay from "@/components/ui/LoadingOverlay";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 
 type Role = "PKWT" | "KARYAWAN" | "KASUBAG" | "KABAG" | "GUEST";
 type Decision = "PENDING" | "APPROVED" | "REJECTED";
@@ -47,7 +48,7 @@ type RequestRow = {
 };
 
 type PatchApprovalBody = {
-  id: string; // requestId
+  id: string;
   decision: "APPROVED" | "REJECTED";
   note?: string;
 };
@@ -70,6 +71,10 @@ export default function ApprovalClient({
   onDone?: () => Promise<void> | void;
 }) {
   const [loadingIds, setLoadingIds] = useState<string[]>([]);
+
+  // modal state
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmRequestId, setConfirmRequestId] = useState<string | null>(null);
 
   const loadingSet = useMemo(() => new Set(loadingIds), [loadingIds]);
 
@@ -98,13 +103,21 @@ export default function ApprovalClient({
         body: JSON.stringify(body),
       });
 
-      const data = (await res.json().catch(() => {
-        const fallback: PatchApprovalErr = { error: "Response bukan JSON" };
-        return fallback;
-      })) as PatchApprovalResponse;
+      const rawText = await res.text();
+
+      let data: PatchApprovalResponse = { ok: true };
+      if (rawText) {
+        try {
+          data = JSON.parse(rawText) as PatchApprovalResponse;
+        } catch {
+          data = { error: rawText };
+        }
+      }
 
       if (!res.ok) {
-        const msg = isPatchApprovalErr(data) ? data.error : "Gagal memproses";
+        const msg = isPatchApprovalErr(data)
+          ? data.error
+          : `HTTP ${res.status} ${res.statusText}`;
         throw new Error(msg);
       }
 
@@ -114,15 +127,45 @@ export default function ApprovalClient({
 
       await onDone?.();
     } catch (e) {
-      alert((e as Error).message || "Terjadi kesalahan");
+      const msg = e instanceof Error ? e.message : "Terjadi kesalahan";
+      alert(msg);
       console.error("Error approve/reject:", e);
     } finally {
       setLoadingIds((s) => s.filter((x) => x !== requestId));
     }
   }
 
+  function openApproveConfirm(requestId: string) {
+    setConfirmRequestId(requestId);
+    setConfirmOpen(true);
+  }
+
+  function closeApproveConfirm() {
+    setConfirmOpen(false);
+    setConfirmRequestId(null);
+  }
+
+  const confirmBusy =
+    confirmRequestId ? loadingSet.has(confirmRequestId) : false;
+
   return (
-    <main className="space-y-4 relative z-[9999] pointer-events-auto">
+    <main className="space-y-4 relative">
+      <ConfirmModal
+        open={confirmOpen}
+        title="Setujui Permohonan"
+        message="Apakah Anda yakin ingin menyetujui permohonan akses ini?"
+        confirmText="Ya, Setujui"
+        cancelText="Batal"
+        loading={confirmBusy}
+        onCancel={closeApproveConfirm}
+        onConfirm={async () => {
+          if (!confirmRequestId) return;
+          const id = confirmRequestId;
+          closeApproveConfirm();
+          await decide(id, "APPROVED");
+        }}
+      />
+
       <div className="flex items-center gap-2 mb-1">
         <ShieldCheck className="w-5 h-5 text-emerald-400" />
         <h1 className="text-lg md:text-xl font-bold">
@@ -138,16 +181,24 @@ export default function ApprovalClient({
             return null;
           }
 
-          // Approval yang relevan untuk role user, fallback ke approval pertama
-          const you = r.approvals.find((a) => a.role === role) ?? r.approvals[0];
+          const kasubagApproval = r.approvals.find((a) => a.role === "KASUBAG");
+          const kasubagStillPending =
+            (kasubagApproval?.decision ?? "PENDING") === "PENDING";
 
-          const pending =
-            r.status === "PENDING" &&
-            you?.decision !== "APPROVED" &&
-            you?.decision !== "REJECTED";
+          // ✅ hak approve:
+          // - KASUBAG selalu bisa saat request pending
+          // - KABAG hanya bisa jika KASUBAG masih pending
+          const canApproveThisRequest =
+            role === "KASUBAG" || (role === "KABAG" && kasubagStillPending);
+
+          const pending = r.status === "PENDING";
 
           const busy = loadingSet.has(id);
           const requesterLabel = r.requester?.name ?? r.guestName ?? "Tamu";
+
+          // siapa yang tampil sebagai "selesai oleh"
+          const decidedBy =
+            r.approvals.find((a) => a.decision !== "PENDING") ?? kasubagApproval;
 
           return (
             <TekpolTile
@@ -186,41 +237,43 @@ export default function ApprovalClient({
               asButton={false}
               footer={
                 pending ? (
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
+                  canApproveThisRequest ? (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          openApproveConfirm(id);
+                        }}
+                        className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 disabled:opacity-60 pointer-events-auto"
+                      >
+                        Approve
+                      </button>
 
-                        const ok = window.confirm("Yakin setujui permohonan ini?");
-                        if (!ok) return;
-
-                        void decide(id, "APPROVED");
-                      }}
-                      className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 disabled:opacity-60 pointer-events-auto"
-                    >
-                      Approve
-                    </button>
-
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        void decide(id, "REJECTED");
-                      }}
-                      className="rounded-lg bg-rose-600/90 hover:bg-rose-700 text-white text-xs px-3 py-1.5 inline-flex items-center gap-1 disabled:opacity-60 pointer-events-auto"
-                    >
-                      <XCircle className="w-4 h-4" />
-                      Reject
-                    </button>
-                  </div>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          void decide(id, "REJECTED");
+                        }}
+                        className="rounded-lg bg-rose-600/90 hover:bg-rose-700 text-white text-xs px-3 py-1.5 inline-flex items-center gap-1 disabled:opacity-60 pointer-events-auto"
+                      >
+                        <XCircle className="w-4 h-4" />
+                        Reject
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-slate-400">
+                      Menunggu keputusan KASUBAG
+                    </div>
+                  )
                 ) : (
                   <div className="text-xs text-slate-400">
-                    Selesai oleh {you?.approver?.name ?? "—"}
+                    Selesai oleh {decidedBy?.approver?.name ?? "—"}
                   </div>
                 )
               }

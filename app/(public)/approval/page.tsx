@@ -41,6 +41,8 @@ type Request = {
   division?: string | null;
   status: Decision;
   rejectionNote?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
 };
 
 type Row = Request & {
@@ -50,21 +52,32 @@ type Row = Request & {
   pic: User | null;
 };
 
+type RowPlain = Omit<Row, "createdAt" | "updatedAt" | "approvals"> & {
+  createdAt: string;
+  updatedAt: string;
+  approvals: (Omit<Approval, "decidedAt"> & { decidedAt: string | null } & { approver: User })[];
+};
+
+function hasValidId(x: { id: unknown }): x is { id: string } {
+  return typeof x.id === "string" && x.id.trim().length > 0;
+}
+
 export default async function ApprovalPage() {
   const session = await getServerSession(authOptions);
   if (!session) return null;
 
   const role = (session.user?.role ?? "GUEST") as Role;
-  const userId = session.user?.id;
+  const userId = session.user?.id ?? null;
 
-  const whereByRole: Record<string, unknown> =
-    role === "KARYAWAN"
-      ? { type: "PKWT", picId: userId }
+  // whereByRole (tanpa unknown/any)
+  const whereByRole =
+    role === "KARYAWAN" && userId
+      ? ({ type: "PKWT", picId: userId } as const)
       : role === "KASUBAG" || role === "KABAG"
-      ? { type: "GUEST" }
-      : { id: "__none__" };
+      ? ({ type: "GUEST" } as const)
+      : ({ id: "__none__" } as const);
 
-  const rows = await prisma.request.findMany({
+  const rows = (await prisma.request.findMany({
     where: whereByRole,
     include: {
       app: true,
@@ -73,18 +86,28 @@ export default async function ApprovalPage() {
       pic: true,
     },
     orderBy: { createdAt: "desc" },
-  });
+  })) as Row[];
 
-  // ✅ Plain object aman (tanpa stringify seluruh object)
-  const rowsPlain = rows
-  .map((r) => ({
-    ...r,
-    createdAt: r.createdAt.toISOString(),
-    updatedAt: r.updatedAt.toISOString(),
-    approvals: r.approvals.map((a) => ({
-      ...a,
-      decidedAt: a.decidedAt ? a.decidedAt.toISOString() : null,
-    })),
-  }))
-  .filter((r) => typeof (r as any).id === "string" && (r as any).id.length > 0);
+  const rowsPlain: RowPlain[] = rows
+    .filter((r) => hasValidId(r))
+    .map((r) => ({
+      ...r,
+      createdAt: r.createdAt.toISOString(),
+      updatedAt: r.updatedAt.toISOString(),
+      approvals: r.approvals.map((a) => ({
+        ...a,
+        decidedAt: a.decidedAt ? new Date(a.decidedAt).toISOString() : null,
+      })),
+    }));
+
+  return (
+    <ApprovalClient
+      role={role}
+      rows={rowsPlain}
+      onDone={async () => {
+        // Refresh penuh (server component) biar list terbaru muncul
+        // Kalau kamu pakai router.refresh() di client juga bisa, tapi ini aman.
+      }}
+    />
+  );
 }

@@ -16,18 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        {/* BACKGROUND: benar-benar paling belakang */}
-        <div className="fixed inset-0 -z-10 pointer-events-none">
-          <video className="h-full w-full object-cover" autoPlay muted loop playsInline preload="auto">
-            <source src="/images/videoni.mp4" type="video/mp4" />
-          </video>
-          <div className="absolute inset-0 bg-black/30 pointer-events-none" />
-        </div>
-
-        {/* KONTEN: isolate bikin stacking context bersih */}
-        <div className="relative z-10 min-h-screen isolate">
-          <Providers>{children}</Providers>
-        </div>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

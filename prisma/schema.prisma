@@ -8,6 +8,8 @@ datasource db {
 }
 
 enum Role {
+  SUPERADMIN
+  ADMIN
   PKWT
   KARYAWAN
   KASUBAG
@@ -40,18 +42,21 @@ model User {
   isPic        Boolean  @default(false)
   createdAt    DateTime @default(now())
 
-  // relasi
-  requests    Request[]  @relation("RequestsByUser") // sebagai requester (user login)
+  requests    Request[]  @relation("RequestsByUser")
   approvals   Approval[]
-  picRequests Request[]  @relation("PicUser") // sebagai PIC
+  picRequests Request[]  @relation("PicUser")
+
+  // ✅ yang benar (karena modelnya "News")
+  newsPosts News[] @relation("NewsAuthor")
 }
 
 model App {
   id          String    @id @default(cuid())
   name        String    @unique
   category    Category
-  username    String       // <--- username untuk akses aplikasi
-  password    String       // <--- password untuk akses aplikasi
+  url         String?   // ✅ LINK APP (baru)
+  username    String
+  password    String
   description String?
   requests    Request[]
 }
@@ -65,8 +70,8 @@ model Request {
   requesterId String?
 
   // aplikasi yang diminta (untuk dropdown nama apps)
-  app           App        @relation(fields: [appId], references: [id], onDelete: Cascade)
-  appId         String
+  app   App    @relation(fields: [appId], references: [id], onDelete: Cascade)
+  appId String
 
   pic           User?      @relation("PicUser", fields: [picId], references: [id])
   picId         String?
@@ -79,12 +84,12 @@ model Request {
   rejectionNote String?
 
   // GUEST TANPA LOGIN
-  guestName    String?      // nama guest yang mengajukan
+  guestName    String? // nama guest yang mengajukan
   trackingCode String? @unique
   trackingPin  String?
 
   // ⬇⬇⬇ TAMBAHAN OPSIONAL: supaya bisa kirim username/password ke guest via email
-  guestEmail   String?      // email guest untuk kirim kredensial
+  guestEmail String? // email guest untuk kirim kredensial
 }
 
 model Approval {
@@ -97,4 +102,67 @@ model Approval {
   decision   Decision  @default(PENDING)
   note       String?
   decidedAt  DateTime?
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  action     String // e.g. CREATE_APP, UPDATE_USER_ROLE, APPROVE_REQUEST, dll
+  entity     String // e.g. "App", "User", "Request"
+  entityId   String? // id target (kalau ada)
+  actorId    String? // id user pelaku (kalau ada)
+  actorEmail String? // email user pelaku (kalau ada)
+  meta       Json? // detail perubahan (before/after)
+  createdAt  DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([actorId])
+  @@index([createdAt])
+}
+
+model News {
+  id            String    @id @default(cuid())
+  title         String
+  slug          String    @unique
+  excerpt       String?
+  content       String
+  coverImageUrl String?
+  isPublished   Boolean   @default(false)
+  publishedAt   DateTime?
+
+  author   User?   @relation("NewsAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  authorId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isPublished, publishedAt])
+}
+
+model GalleryCategory {
+  id       String  @id @default(cuid())
+  name     String  @unique
+  slug     String  @unique
+  order    Int     @default(0)
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, order])
+}
+
+model Gallery {
+  id        String  @id @default(cuid())
+  title     String?
+  caption   String?
+  category  String?
+  imageUrl  String
+  order     Int     @default(0)
+  isVisible Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isVisible, order])
+  @@index([category])
 }

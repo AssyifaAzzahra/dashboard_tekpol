@@ -15,8 +15,8 @@ import NewsSection from './NewsSection';
 import { useSession } from 'next-auth/react';
 
 import AppsClient from '@/app/apps/credentials/view-client';
-import RequestFormClient from '@/app/info-login/request-form-client';
-import ApprovalClient from '@/app/approval/view-client';
+import RequestFormClient from '@/app/(public)/info-login/request-form-client';
+import ApprovalClient from '@/app/(public)/approval/view-client';
 
 // ---- tipe dasar ----
 type Role = 'PKWT' | 'KARYAWAN' | 'KASUBAG' | 'KABAG' | 'GUEST';
