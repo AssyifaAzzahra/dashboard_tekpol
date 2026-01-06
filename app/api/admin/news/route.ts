@@ -6,6 +6,7 @@ import { deletePublicUploadByUrl, savePublicUpload } from "@/lib/upload";
 import { z } from "zod";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 function jsonError(status: number, message: string, extra?: unknown) {
   return NextResponse.json(
@@ -78,13 +79,19 @@ export async function POST(req: NextRequest) {
 
   // 1) kalau session punya user.id → validasi ke DB
   if (sessionUserId) {
-    const u = await prisma.user.findUnique({ where: { id: sessionUserId }, select: { id: true } });
+    const u = await prisma.user.findUnique({
+      where: { id: sessionUserId },
+      select: { id: true },
+    });
     if (u?.id) actorId = u.id;
   }
 
   // 2) fallback: kalau id kosong / tidak ketemu → cari via email
   if (!actorId && actorEmail) {
-    const u = await prisma.user.findUnique({ where: { email: actorEmail }, select: { id: true } });
+    const u = await prisma.user.findUnique({
+      where: { email: actorEmail },
+      select: { id: true },
+    });
     if (u?.id) actorId = u.id;
   }
 
@@ -107,7 +114,9 @@ export async function POST(req: NextRequest) {
   };
 
   const parsed = CreateSchema.safeParse(raw);
-  if (!parsed.success) return NextResponse.json(parsed.error, { status: 400 });
+  if (!parsed.success) {
+    return NextResponse.json(parsed.error, { status: 400 });
+  }
 
   const cover = fd.get("cover") as File | null;
   let coverUrl: string | null = null;
@@ -146,7 +155,11 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(created, { status: 201 });
   } catch (e) {
+    // ✅ biar kamu bisa lihat error asli di terminal
+    console.error("CREATE_NEWS ERROR:", e);
+
     if (coverUrl) await deletePublicUploadByUrl(coverUrl);
+
     return jsonError(500, "Gagal membuat berita.", String(e));
   }
 }
