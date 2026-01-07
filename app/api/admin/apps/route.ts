@@ -1,7 +1,7 @@
 // app/api/admin/apps/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireSuperadmin } from "@/lib/admin";
+import { requireAdmin } from "@/lib/admin";
 import { z } from "zod";
 import { writeAuditLog } from "@/lib/audit";
 import { Prisma } from "@prisma/client";
@@ -14,7 +14,7 @@ const CreateSchema = z.object({
   username: z.string().min(1),
   password: z.string().min(1),
   description: z.string().optional(),
-  url: z.string().optional(), // ✅ tambah
+  url: z.string().optional(),
 });
 
 const UpdateSchema = z.object({
@@ -23,7 +23,7 @@ const UpdateSchema = z.object({
   username: z.string().min(1).optional(),
   password: z.string().min(1).optional(),
   description: z.string().optional().nullable(),
-  url: z.string().optional().nullable(), // ✅ tambah
+  url: z.string().optional().nullable(),
 });
 
 function jsonError(status: number, message: string, extra?: unknown) {
@@ -49,23 +49,19 @@ function normalizeUrl(v: unknown): string | null | undefined {
   const t = v.trim();
   if (!t) return null;
 
-  // kalau admin isi tanpa http(s), kita prepend https://
   const withProto = /^https?:\/\//i.test(t) ? t : `https://${t}`;
 
   try {
-    // validasi URL
-    // eslint-disable-next-line no-new
     new URL(withProto);
     return withProto;
   } catch {
-    // kalau invalid, balikin original (biar ketahuan di UI / validasi berikutnya kalau mau)
     return withProto;
   }
 }
 
 // ------------ GET (list) ------------
 export async function GET() {
-  const guard = await requireSuperadmin();
+  const guard = await requireAdmin();
   if (!guard.ok) return guard.res;
 
   const data = await prisma.app.findMany({
@@ -77,7 +73,7 @@ export async function GET() {
 
 // ------------ POST (create) ------------
 export async function POST(req: NextRequest) {
-  const guard = await requireSuperadmin();
+  const guard = await requireAdmin();
   if (!guard.ok) return guard.res;
 
   const actorId = guard.session.user?.id ?? null;
@@ -94,7 +90,7 @@ export async function POST(req: NextRequest) {
         username: parsed.data.username,
         password: parsed.data.password,
         description: normalizeDescription(parsed.data.description),
-        url: normalizeUrl(parsed.data.url), // ✅ simpan url
+        url: normalizeUrl(parsed.data.url),
       },
     });
 
@@ -118,7 +114,7 @@ export async function POST(req: NextRequest) {
 
 // ------------ PATCH (update via ?id=) ------------
 export async function PATCH(req: NextRequest) {
-  const guard = await requireSuperadmin();
+  const guard = await requireAdmin();
   if (!guard.ok) return guard.res;
 
   const actorId = guard.session.user?.id ?? null;
@@ -137,7 +133,7 @@ export async function PATCH(req: NextRequest) {
   const data = {
     ...parsed.data,
     description: normalizeDescription(parsed.data.description),
-    url: normalizeUrl(parsed.data.url), // ✅ update url
+    url: normalizeUrl(parsed.data.url),
   };
 
   try {
@@ -164,7 +160,7 @@ export async function PATCH(req: NextRequest) {
 
 // ------------ DELETE (delete via ?id=) ------------
 export async function DELETE(req: NextRequest) {
-  const guard = await requireSuperadmin();
+  const guard = await requireAdmin();
   if (!guard.ok) return guard.res;
 
   const actorId = guard.session.user?.id ?? null;
