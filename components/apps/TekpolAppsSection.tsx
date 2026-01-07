@@ -114,7 +114,7 @@ export default function TekpolAppsSection({ search }: { search: string }) {
         <div>
           <h1 className="text-xl font-bold">Tekpol Apps</h1>
           <p className="text-sm text-slate-500 mt-1">
-            Data dari DB + apps lama (static). {loading ? "Memuat..." : `${filtered.length} item`}
+           {loading ? "Memuat..." : `${filtered.length} item`}
           </p>
         </div>
       </div>
