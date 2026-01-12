@@ -10,9 +10,12 @@ import {
   Users,
   ScrollText,
   Newspaper,
+  Instagram,
   Image as ImageIcon,
   Tags,
+  FileText,
 } from "lucide-react";
+
 
 type Menu = { href: string; label: string; icon: React.ReactNode; group?: "MAIN" | "CONTENT" };
 
@@ -23,9 +26,13 @@ const menus: Menu[] = [
   { href: "/admin/users", label: "Users & Roles", icon: <Users className="h-4 w-4" />, group: "MAIN" },
   { href: "/admin/audit", label: "Audit Log", icon: <ScrollText className="h-4 w-4" />, group: "MAIN" },
 
+  // CONTENT
   { href: "/admin/news", label: "News", icon: <Newspaper className="h-4 w-4" />, group: "CONTENT" },
+  { href: "/admin/instagram", label: "Instagram", icon: <Instagram className="h-4 w-4" />, group: "CONTENT" }, // ✅ NEW
   { href: "/admin/gallery", label: "Gallery", icon: <ImageIcon className="h-4 w-4" />, group: "CONTENT" },
   { href: "/admin/gallery-categories", label: "Kategori Galeri", icon: <Tags className="h-4 w-4" />, group: "CONTENT" },
+  { href: "/admin/pks-deck", label: "PPT PKS", icon: <FileText className="h-4 w-4" />, group: "CONTENT" },
+
 ];
 
 export default function AdminSidebar() {
@@ -70,7 +77,9 @@ export default function AdminSidebar() {
 
         <div className="space-y-1">
           {content.map((m) => {
-            const active = path === m.href;
+            // biar menu active juga saat path anaknya, misal /admin/news/xxx
+            const active = path === m.href || path.startsWith(m.href + "/");
+
             return (
               <Link
                 key={m.href}

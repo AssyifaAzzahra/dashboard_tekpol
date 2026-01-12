@@ -1,4 +1,3 @@
-// app/api/admin/news/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin";
@@ -46,16 +45,36 @@ function normISODate(v: FormDataEntryValue | null): Date | null {
   return d;
 }
 
+function parseInstagramUrl(input: string): string | null {
+  try {
+    const url = new URL(input.trim());
+    const host = url.hostname.replace(/^www\./, "").toLowerCase();
+    if (host !== "instagram.com" && host !== "instagr.am") return null;
+
+    // allow: /p/xxx/ , /reel/xxx/ , /tv/xxx/
+    const parts = url.pathname.split("/").filter(Boolean);
+    if (parts.length < 2) return null;
+
+    const kind = parts[0];
+    const code = parts[1];
+    if (!code) return null;
+
+    if (kind !== "p" && kind !== "reel" && kind !== "tv") return null;
+
+    return `https://www.instagram.com/${kind}/${code}/`;
+  } catch {
+    return null;
+  }
+}
+
 async function uploadCoverToBlob(file: File) {
   const token = process.env.BLOB_READ_WRITE_TOKEN;
   if (!token) {
-    throw new Error("Env BLOB_READ_WRITE_TOKEN belum ada. Tambahkan di .env (local) dan di Vercel Env (production).");
+    throw new Error("Env BLOB_READ_WRITE_TOKEN belum ada (set di .env lokal dan Vercel).");
   }
-
   const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
   const safeExt = ext || "jpg";
-  const path = `news/${Date.now()}-${Math.random().toString(16).slice(2)}.${safeExt}`;
-
+  const path = `instagram/${Date.now()}-${Math.random().toString(16).slice(2)}.${safeExt}`;
   const blob = await put(path, file, { access: "public", token });
   return blob.url;
 }
@@ -78,7 +97,7 @@ export async function GET() {
   if (!guard.ok) return guard.res;
 
   const items = await prisma.news.findMany({
-    where: { sourceType: NewsSource.INTERNAL },
+    where: { sourceType: NewsSource.INSTAGRAM },
     orderBy: [{ createdAt: "desc" }],
   });
 
@@ -88,8 +107,7 @@ export async function GET() {
 // ---------------- POST ----------------
 const CreateSchema = z.object({
   title: z.string().min(1),
-  excerpt: z.string().optional(),
-  content: z.string().min(1),
+  instagramUrl: z.string().min(1),
   isPublished: z.boolean().optional(),
   publishedAt: z.date().nullable().optional(),
 });
@@ -105,19 +123,22 @@ export async function POST(req: NextRequest) {
     const fd = await req.formData();
 
     const title = normText(fd.get("title"));
-    const excerpt = normText(fd.get("excerpt"));
-    const content = normText(fd.get("content"));
+    const instagramUrlRaw = normText(fd.get("instagramUrl"));
     const isPublished = normBool(fd.get("isPublished"));
     const publishedAt = normISODate(fd.get("publishedAt"));
 
     const parsed = CreateSchema.safeParse({
       title: title ?? "",
-      excerpt: excerpt ?? undefined,
-      content: content ?? "",
+      instagramUrl: instagramUrlRaw ?? "",
       isPublished,
       publishedAt,
     });
     if (!parsed.success) return NextResponse.json(parsed.error, { status: 400 });
+
+    const canonical = parseInstagramUrl(parsed.data.instagramUrl);
+    if (!canonical) {
+      return jsonError(400, "Link Instagram tidak valid. Contoh: https://www.instagram.com/reel/XXXX/");
+    }
 
     const coverEntry = fd.get("cover");
     let coverImageUrl: string | null = null;
@@ -126,7 +147,7 @@ export async function POST(req: NextRequest) {
     }
 
     const baseSlug = slugify(parsed.data.title);
-    let slug = baseSlug || `news-${Date.now()}`;
+    let slug = baseSlug || `ig-${Date.now()}`;
     for (let i = 0; i < 10; i++) {
       const exists = await prisma.news.findUnique({ where: { slug } });
       if (!exists) break;
@@ -139,19 +160,20 @@ export async function POST(req: NextRequest) {
       data: {
         title: parsed.data.title.trim(),
         slug,
-        excerpt: parsed.data.excerpt?.trim() ?? null,
-        content: parsed.data.content,
+        excerpt: null,
+        content: "[INSTAGRAM]",
         coverImageUrl,
         isPublished: !!parsed.data.isPublished,
         publishedAt: parsed.data.isPublished ? (parsed.data.publishedAt ?? new Date()) : null,
         authorId,
-        sourceType: NewsSource.INTERNAL,
-        instagramUrl: null,
+
+        sourceType: NewsSource.INSTAGRAM,
+        instagramUrl: canonical,
       },
     });
 
     await writeAuditLog({
-      action: "CREATE_NEWS",
+      action: "CREATE_INSTAGRAM",
       entity: "News",
       entityId: created.id,
       actorId,
@@ -161,7 +183,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(created, { status: 201 });
   } catch (e: any) {
-    return jsonError(500, "Gagal membuat berita.", String(e?.message ?? e));
+    return jsonError(500, "Gagal membuat Instagram.", String(e?.message ?? e));
   }
 }
 
@@ -179,23 +201,28 @@ export async function PATCH(req: NextRequest) {
 
   const before = await prisma.news.findUnique({ where: { id } });
   if (!before) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (before.sourceType !== NewsSource.INSTAGRAM) return jsonError(400, "Item ini bukan Instagram.");
 
   try {
     const fd = await req.formData();
 
     const title = normText(fd.get("title")) ?? before.title;
-    const excerptRaw = fd.get("excerpt");
-    const excerpt = typeof excerptRaw === "string" ? excerptRaw.trim() : "";
-    const content = normText(fd.get("content")) ?? before.content;
-
+    const instagramUrlRaw = fd.has("instagramUrl") ? normText(fd.get("instagramUrl")) : before.instagramUrl;
     const isPublished = fd.has("isPublished") ? normBool(fd.get("isPublished")) : before.isPublished;
     const publishedAt = fd.has("publishedAt") ? normISODate(fd.get("publishedAt")) : (before.publishedAt ?? null);
-
     const removeCover = normBool(fd.get("removeCover"));
+
+    let canonical = before.instagramUrl;
+    if (instagramUrlRaw) {
+      const parsedUrl = parseInstagramUrl(instagramUrlRaw);
+      if (!parsedUrl) return jsonError(400, "Link Instagram tidak valid.");
+      canonical = parsedUrl;
+    } else {
+      return jsonError(400, "Link Instagram wajib diisi.");
+    }
 
     const coverEntry = fd.get("cover");
     let coverImageUrl: string | null | undefined = undefined;
-
     if (coverEntry instanceof File && coverEntry.size > 0) {
       coverImageUrl = await uploadCoverToBlob(coverEntry);
     } else if (removeCover) {
@@ -204,12 +231,12 @@ export async function PATCH(req: NextRequest) {
 
     const data: Prisma.NewsUpdateInput = {
       title: title.trim(),
-      excerpt: excerpt ? excerpt : null,
-      content,
+      instagramUrl: canonical,
       isPublished,
       publishedAt: isPublished ? (publishedAt ?? new Date()) : null,
-      sourceType: NewsSource.INTERNAL,
-      instagramUrl: null,
+      sourceType: NewsSource.INSTAGRAM,
+      content: "[INSTAGRAM]",
+      excerpt: null,
     };
 
     if (coverImageUrl !== undefined) data.coverImageUrl = coverImageUrl;
@@ -230,7 +257,7 @@ export async function PATCH(req: NextRequest) {
     const updated = await prisma.news.update({ where: { id }, data });
 
     await writeAuditLog({
-      action: "UPDATE_NEWS",
+      action: "UPDATE_INSTAGRAM",
       entity: "News",
       entityId: id,
       actorId,
@@ -240,7 +267,7 @@ export async function PATCH(req: NextRequest) {
 
     return NextResponse.json(updated);
   } catch (e: any) {
-    return jsonError(500, "Gagal update berita.", String(e?.message ?? e));
+    return jsonError(500, "Gagal update Instagram.", String(e?.message ?? e));
   }
 }
 
@@ -258,12 +285,13 @@ export async function DELETE(req: NextRequest) {
 
   const before = await prisma.news.findUnique({ where: { id } });
   if (!before) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (before.sourceType !== NewsSource.INSTAGRAM) return jsonError(400, "Item ini bukan Instagram.");
 
   try {
     await prisma.news.delete({ where: { id } });
 
     await writeAuditLog({
-      action: "DELETE_NEWS",
+      action: "DELETE_INSTAGRAM",
       entity: "News",
       entityId: id,
       actorId,
@@ -273,6 +301,6 @@ export async function DELETE(req: NextRequest) {
 
     return NextResponse.json({ ok: true });
   } catch (e: any) {
-    return jsonError(500, "Gagal hapus berita.", String(e?.message ?? e));
+    return jsonError(500, "Gagal hapus Instagram.", String(e?.message ?? e));
   }
 }

@@ -15,7 +15,7 @@ function slugify(input: string) {
     .replace(/^-|-$/g, "");
 }
 
-async function seedUsersAndApps() {
+async function seedUsers() {
   // --- SUPERADMIN ---
   const email = process.env.SUPERADMIN_EMAIL ?? "superadmin@tekpol.local";
   const password = process.env.SUPERADMIN_PASSWORD ?? "SuperAdmin123!";
@@ -40,7 +40,7 @@ async function seedUsersAndApps() {
 
   console.log("✅ Seed superadmin:", email);
 
-  // --- USERS ---
+  // --- USERS (opsional buat testing) ---
   await prisma.user.upsert({
     where: { email: "kabag@tekpol.local" },
     update: {},
@@ -65,81 +65,55 @@ async function seedUsersAndApps() {
     },
   });
 
-  await prisma.user.upsert({
-    where: { email: "karyawan1@tekpol.local" },
-    update: {},
-    create: {
-      name: "Karyawan 1",
-      email: "karyawan1@tekpol.local",
-      passwordHash: await bcrypt.hash("karyawan123", 10),
-      role: "KARYAWAN",
-      isPic: true,
-    },
-  });
+  console.log("✅ Seed users selesai.");
+}
 
-  await prisma.user.upsert({
-    where: { email: "karyawan2@tekpol.local" },
-    update: {},
-    create: {
-      name: "Karyawan 2",
-      email: "karyawan2@tekpol.local",
-      passwordHash: await bcrypt.hash("karyawan123", 10),
-      role: "KARYAWAN",
-      isPic: true,
-    },
-  });
+async function seedAppsMinimal() {
+  // Karena App.url WAJIB, kalau kamu tidak mau seed apps,
+  // kamu bisa BIARKAN KOSONG (tidak create apa-apa).
+  // Tapi ini contoh minimal 1 app dummy supaya UI tidak kosong total.
+  //
+  // Admin nanti bisa create apps yang asli dari halaman Admin.
 
-  await prisma.user.upsert({
-    where: { email: "karyawan3@tekpol.local" },
-    update: {},
-    create: {
-      name: "Karyawan 3",
-      email: "karyawan3@tekpol.local",
-      passwordHash: await bcrypt.hash("karyawan123", 10),
-      role: "KARYAWAN",
-      isPic: true,
+  const minimalApps = [
+    {
+      name: "Contoh App",
+      category: "HO" as const,
+      url: "https://example.com", // wajib, bisa diganti nanti oleh Admin
+      username: null,
+      password: null,
+      description: "Contoh (hapus/ganti lewat Admin)",
     },
-  });
-
-  await prisma.user.upsert({
-    where: { email: "pkwt1@tekpol.local" },
-    update: {},
-    create: {
-      name: "PKWT 1",
-      email: "pkwt1@tekpol.local",
-      passwordHash: await bcrypt.hash("pkwt123", 10),
-      role: "PKWT",
-      isPic: false,
-    },
-  });
-
-  // --- APPS ---
-  const apps = [
-    { name: "SAP HO", category: "HO" as const, username: "sap_ho_user", password: "Sap#2025", description: "ERP HO" },
-    { name: "E-Office HO", category: "HO" as const, username: "eoffice_ho", password: "Office#2025", description: "Surat menyurat" },
-    { name: "SIM Aset HO", category: "HO" as const, username: "sim_aset", password: "Aset#2025", description: "Aset perusahaan" },
-    { name: "Dashboard Regional", category: "REGIONAL" as const, username: "dash_reg", password: "Dash#2025", description: "Dashboard wilayah" },
-    { name: "E-Plant Regional", category: "REGIONAL" as const, username: "eplant_reg", password: "Plant#2025", description: "Tanaman" },
-    { name: "SIM Pupuk Regional", category: "REGIONAL" as const, username: "simpupuk_reg", password: "Pupuk#2025", description: "Pupuk" },
   ] as const;
 
-  for (const a of apps) {
+  for (const a of minimalApps) {
     await prisma.app.upsert({
       where: { name: a.name },
-      update: {},
-      create: a,
+      update: {
+        category: a.category,
+        url: a.url,
+        username: a.username,
+        password: a.password,
+        description: a.description,
+      },
+      create: {
+        name: a.name,
+        category: a.category,
+        url: a.url,
+        username: a.username,
+        password: a.password,
+        description: a.description,
+      },
     });
   }
 
-  console.log("✅ Seed users + apps selesai.");
+  console.log("✅ Seed apps minimal selesai.");
 }
 
 async function seedGalleryFromLegacyItems() {
   // kumpulkan kategori unik dari GALLERY_ITEMS
   const cats = Array.from(
-    new Set(
-      GALLERY_ITEMS.map((x) => (x.category || "Umum").trim() || "Umum")
-    )
+    new Set(GALLERY_ITEMS.map((x) => (x.category || "Umum").trim() || "Umum"))
   );
 
   // upsert kategori ke GalleryCategory (order dibuat urut sesuai list)
@@ -166,7 +140,7 @@ async function seedGalleryFromLegacyItems() {
         title,
         caption,
         category: catName,
-        imageUrl: it.image, // contoh "/images/galeri/senam1.jpg"
+        imageUrl: it.image,
         isVisible: true,
         order: 0,
       },
@@ -186,7 +160,8 @@ async function seedGalleryFromLegacyItems() {
 }
 
 async function main() {
-  await seedUsersAndApps();
+  await seedUsers();
+  await seedAppsMinimal(); // kalau gak mau ada app dummy sama sekali, comment baris ini
   await seedGalleryFromLegacyItems();
   console.log("✅ Seeding selesai semua.");
 }

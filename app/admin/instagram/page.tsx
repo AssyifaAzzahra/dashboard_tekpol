@@ -3,14 +3,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import AdminShell from "@/components/admin/AdminShell";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 
-type News = {
+type IgRow = {
   id: string;
   title: string;
-  slug: string;
-  excerpt: string | null;
-  content: string;
+  instagramUrl: string | null;
   coverImageUrl: string | null;
   isPublished: boolean;
   publishedAt: string | null;
@@ -27,34 +24,27 @@ function toDatetimeLocalValue(iso: string | null | undefined) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
   const pad = (n: number) => String(n).padStart(2, "0");
-  const yyyy = d.getFullYear();
-  const mm = pad(d.getMonth() + 1);
-  const dd = pad(d.getDate());
-  const hh = pad(d.getHours());
-  const mi = pad(d.getMinutes());
-  return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export default function AdminNewsPage() {
-  const [items, setItems] = useState<News[]>([]);
+export default function AdminInstagramPage() {
+  const [items, setItems] = useState<IgRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // create
   const [title, setTitle] = useState("");
-  const [excerpt, setExcerpt] = useState("");
-  const [content, setContent] = useState("");
+  const [instagramUrl, setInstagramUrl] = useState("");
   const [cover, setCover] = useState<File | null>(null);
-  const [isPublished, setIsPublished] = useState(false);
+  const [isPublished, setIsPublished] = useState(true);
   const [publishedAt, setPublishedAt] = useState("");
 
   // edit
-  const [edit, setEdit] = useState<News | null>(null);
+  const [edit, setEdit] = useState<IgRow | null>(null);
   const [eTitle, setETitle] = useState("");
-  const [eExcerpt, setEExcerpt] = useState("");
-  const [eContent, setEContent] = useState("");
-  const [eIsPublished, setEIsPublished] = useState(false);
+  const [eUrl, setEUrl] = useState("");
+  const [eIsPublished, setEIsPublished] = useState(true);
   const [ePublishedAt, setEPublishedAt] = useState("");
   const [eCoverFile, setECoverFile] = useState<File | null>(null);
   const [removeCover, setRemoveCover] = useState(false);
@@ -63,12 +53,12 @@ export default function AdminNewsPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/admin/news", { cache: "no-store" });
+      const res = await fetch("/api/admin/instagram", { cache: "no-store" });
       if (!res.ok) throw new Error(await res.text());
-      const data = (await res.json()) as News[];
-      setItems(data);
+      const data = (await res.json()) as IgRow[];
+      setItems(Array.isArray(data) ? data : []);
     } catch (e: any) {
-      setError(e?.message || "Gagal load berita.");
+      setError(e?.message || "Gagal load Instagram.");
     } finally {
       setLoading(false);
     }
@@ -85,41 +75,38 @@ export default function AdminNewsPage() {
     setError(null);
 
     if (!title.trim()) return setError("Judul wajib diisi.");
-    if (!content.trim()) return setError("Konten wajib diisi.");
+    if (!instagramUrl.trim()) return setError("Link Instagram wajib diisi.");
 
     setBusy("create");
     try {
       const fd = new FormData();
       fd.set("title", title.trim());
-      if (excerpt.trim()) fd.set("excerpt", excerpt.trim());
-      fd.set("content", content);
+      fd.set("instagramUrl", instagramUrl.trim());
       fd.set("isPublished", String(isPublished));
       if (publishedAt) fd.set("publishedAt", new Date(publishedAt).toISOString());
       if (cover) fd.set("cover", cover);
 
-      const res = await fetch("/api/admin/news", { method: "POST", body: fd });
+      const res = await fetch("/api/admin/instagram", { method: "POST", body: fd });
       if (!res.ok) throw new Error(await res.text());
 
       setTitle("");
-      setExcerpt("");
-      setContent("");
+      setInstagramUrl("");
       setCover(null);
-      setIsPublished(false);
+      setIsPublished(true);
       setPublishedAt("");
 
       await load();
     } catch (e: any) {
-      setError(e?.message || "Gagal membuat berita.");
+      setError(e?.message || "Gagal membuat Instagram.");
     } finally {
       setBusy(null);
     }
   }
 
-  function openEdit(it: News) {
+  function openEdit(it: IgRow) {
     setEdit(it);
     setETitle(it.title);
-    setEExcerpt(it.excerpt ?? "");
-    setEContent(it.content);
+    setEUrl(it.instagramUrl ?? "");
     setEIsPublished(!!it.isPublished);
     setEPublishedAt(toDatetimeLocalValue(it.publishedAt));
     setECoverFile(null);
@@ -131,20 +118,19 @@ export default function AdminNewsPage() {
     setError(null);
 
     if (!eTitle.trim()) return setError("Judul wajib diisi.");
-    if (!eContent.trim()) return setError("Konten wajib diisi.");
+    if (!eUrl.trim()) return setError("Link Instagram wajib diisi.");
 
     setBusy(edit.id);
     try {
       const fd = new FormData();
       fd.set("title", eTitle.trim());
-      fd.set("excerpt", eExcerpt.trim());
-      fd.set("content", eContent);
+      fd.set("instagramUrl", eUrl.trim());
       fd.set("isPublished", String(eIsPublished));
       fd.set("publishedAt", ePublishedAt ? new Date(ePublishedAt).toISOString() : "");
       fd.set("removeCover", String(removeCover));
       if (eCoverFile) fd.set("cover", eCoverFile);
 
-      const res = await fetch(`/api/admin/news?id=${encodeURIComponent(edit.id)}`, {
+      const res = await fetch(`/api/admin/instagram?id=${encodeURIComponent(edit.id)}`, {
         method: "PATCH",
         body: fd,
       });
@@ -153,37 +139,39 @@ export default function AdminNewsPage() {
       setEdit(null);
       await load();
     } catch (e: any) {
-      setError(e?.message || "Gagal update berita.");
+      setError(e?.message || "Gagal update Instagram.");
     } finally {
       setBusy(null);
     }
   }
 
   async function remove(id: string) {
-    const ok = confirm("Hapus berita ini?");
+    const ok = confirm("Hapus item Instagram ini?");
     if (!ok) return;
 
     setError(null);
     setBusy(`del:${id}`);
     try {
-      const res = await fetch(`/api/admin/news?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      const res = await fetch(`/api/admin/instagram?id=${encodeURIComponent(id)}`, { method: "DELETE" });
       if (!res.ok) throw new Error(await res.text());
       await load();
     } catch (e: any) {
-      setError(e?.message || "Gagal hapus berita.");
+      setError(e?.message || "Gagal hapus Instagram.");
     } finally {
       setBusy(null);
     }
   }
 
   return (
-    <AdminShell title="News (Artikel)">
+    <AdminShell title="Instagram">
       <div className="space-y-6">
         <div className="rounded-2xl border bg-white/70 backdrop-blur p-5 shadow-sm">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h1 className="text-xl font-semibold">News (Artikel)</h1>
-              <p className="text-sm text-muted-foreground">CRUD berita artikel internal.</p>
+              <h1 className="text-xl font-semibold">Instagram</h1>
+              <p className="text-sm text-muted-foreground">
+                CRUD posting Instagram (akan tampil di Latest News di homepage).
+              </p>
             </div>
 
             <button
@@ -202,26 +190,26 @@ export default function AdminNewsPage() {
           )}
         </div>
 
+        {/* Create */}
         <form onSubmit={createItem} className="rounded-2xl border bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold">Tambah News</h2>
-            <span className="text-xs text-muted-foreground">Konten wajib</span>
+            <h2 className="text-base font-semibold">Tambah Instagram</h2>
+            <span className="text-xs text-muted-foreground">Link wajib</span>
           </div>
 
           <div className="mt-4 grid grid-cols-1 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Judul</label>
-              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Judul berita..." />
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Judul..." />
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Ringkasan (opsional)</label>
-              <Textarea value={excerpt} onChange={(e) => setExcerpt(e.target.value)} className="min-h-[80px]" />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Konten</label>
-              <Textarea value={content} onChange={(e) => setContent(e.target.value)} className="min-h-[180px]" />
+              <label className="text-sm font-medium">Link Instagram</label>
+              <Input
+                value={instagramUrl}
+                onChange={(e) => setInstagramUrl(e.target.value)}
+                placeholder="https://www.instagram.com/reel/XXXX/"
+              />
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -238,7 +226,12 @@ export default function AdminNewsPage() {
               <div className="space-y-2">
                 <label className="text-sm font-medium">Status</label>
                 <div className="flex items-center gap-2 pt-2">
-                  <input id="pub" type="checkbox" checked={isPublished} onChange={(e) => setIsPublished(e.target.checked)} />
+                  <input
+                    id="pub"
+                    type="checkbox"
+                    checked={isPublished}
+                    onChange={(e) => setIsPublished(e.target.checked)}
+                  />
                   <label htmlFor="pub" className="text-sm">Publish</label>
                 </div>
 
@@ -262,36 +255,28 @@ export default function AdminNewsPage() {
           </div>
         </form>
 
+        {/* List */}
         <div className="rounded-2xl border bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-base font-semibold">Daftar News</h2>
-            <span className="text-xs text-muted-foreground">{loading ? "Loading..." : `${items.length} berita`}</span>
+            <h2 className="text-base font-semibold">Daftar Instagram</h2>
+            <span className="text-xs text-muted-foreground">{loading ? "Loading..." : `${items.length} item`}</span>
           </div>
 
           {loading ? (
             <div className="mt-4 text-sm text-muted-foreground">Memuat data...</div>
           ) : sorted.length === 0 ? (
-            <div className="mt-4 text-sm text-muted-foreground">Belum ada berita.</div>
+            <div className="mt-4 text-sm text-muted-foreground">Belum ada item.</div>
           ) : (
             <div className="mt-4 space-y-3">
               {sorted.map((it) => (
                 <div key={it.id} className="rounded-2xl border p-4">
                   <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                     <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <div className="text-sm font-semibold">{it.title}</div>
-                        <span className="rounded-full bg-gray-100 px-2 py-1 text-xs">/{it.slug}</span>
-                        <span
-                          className={cx(
-                            "rounded-full px-2 py-1 text-xs font-medium",
-                            it.isPublished ? "bg-emerald-100 text-emerald-700" : "bg-gray-200 text-gray-700"
-                          )}
-                        >
-                          {it.isPublished ? "Published" : "Draft"}
-                        </span>
-                      </div>
+                      <div className="text-sm font-semibold">{it.title}</div>
 
-                      {it.excerpt && <div className="mt-2 text-xs text-muted-foreground line-clamp-2">{it.excerpt}</div>}
+                      <div className="mt-1 text-xs text-muted-foreground break-all">
+                        {it.instagramUrl ?? "-"}
+                      </div>
 
                       <div className="mt-2 text-xs text-muted-foreground">
                         Publish: {it.publishedAt ? new Date(it.publishedAt).toLocaleString() : "-"} • Dibuat:{" "}
@@ -332,89 +317,70 @@ export default function AdminNewsPage() {
           )}
         </div>
 
+        {/* Edit Modal */}
         {edit && (
           <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 md:items-center">
             <div className="w-full max-w-3xl rounded-2xl bg-white shadow-xl">
               <div className="flex items-center justify-between border-b p-4">
                 <div>
-                  <div className="text-base font-semibold">Edit News</div>
+                  <div className="text-base font-semibold">Edit Instagram</div>
                   <div className="text-xs text-muted-foreground">ID: {edit.id}</div>
                 </div>
-                <button
-                  onClick={() => setEdit(null)}
-                  className="rounded-xl border px-3 py-2 text-sm hover:bg-gray-50"
-                  disabled={!!busy}
-                >
+                <button onClick={() => setEdit(null)} className="rounded-xl border px-3 py-2 text-sm hover:bg-gray-50" disabled={!!busy}>
                   Tutup
                 </button>
               </div>
 
               <div className="p-4 space-y-4">
-                <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Judul</label>
+                  <Input value={eTitle} onChange={(e) => setETitle(e.target.value)} />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Link Instagram</label>
+                  <Input value={eUrl} onChange={(e) => setEUrl(e.target.value)} />
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Judul</label>
-                    <Input value={eTitle} onChange={(e) => setETitle(e.target.value)} />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Ringkasan</label>
-                    <Textarea value={eExcerpt} onChange={(e) => setEExcerpt(e.target.value)} className="min-h-[80px]" />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Konten</label>
-                    <Textarea value={eContent} onChange={(e) => setEContent(e.target.value)} className="min-h-[180px]" />
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Status</label>
-                      <div className="flex items-center gap-2 pt-2">
-                        <input
-                          id="epub"
-                          type="checkbox"
-                          checked={eIsPublished}
-                          onChange={(e) => setEIsPublished(e.target.checked)}
-                        />
-                        <label htmlFor="epub" className="text-sm">
-                          Publish
-                        </label>
-                      </div>
-
-                      <label className="text-xs text-muted-foreground">Tanggal publish (opsional)</label>
-                      <Input type="datetime-local" value={ePublishedAt} onChange={(e) => setEPublishedAt(e.target.value)} />
+                    <label className="text-sm font-medium">Status</label>
+                    <div className="flex items-center gap-2 pt-2">
+                      <input id="epub" type="checkbox" checked={eIsPublished} onChange={(e) => setEIsPublished(e.target.checked)} />
+                      <label htmlFor="epub" className="text-sm">Publish</label>
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Cover</label>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => setECoverFile(e.target.files?.[0] ?? null)}
-                        className="block w-full rounded-xl border bg-white px-3 py-2 text-sm"
-                      />
+                    <label className="text-xs text-muted-foreground">Tanggal publish (opsional)</label>
+                    <Input type="datetime-local" value={ePublishedAt} onChange={(e) => setEPublishedAt(e.target.value)} />
+                  </div>
 
-                      <div className="flex items-center justify-between">
-                        <div className="text-xs text-muted-foreground">
-                          {eCoverFile ? `File baru: ${eCoverFile.name}` : "Tidak ada file baru."}
-                        </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Cover</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setECoverFile(e.target.files?.[0] ?? null)}
+                      className="block w-full rounded-xl border bg-white px-3 py-2 text-sm"
+                    />
 
-                        <div className="flex items-center gap-2">
-                          <input id="rmcover" type="checkbox" checked={removeCover} onChange={(e) => setRemoveCover(e.target.checked)} />
-                          <label htmlFor="rmcover" className="text-xs">
-                            Hapus cover
-                          </label>
-                        </div>
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs text-muted-foreground">
+                        {eCoverFile ? `File baru: ${eCoverFile.name}` : "Tidak ada file baru."}
                       </div>
 
-                      {edit.coverImageUrl && !removeCover && (
-                        <div className="flex items-center gap-3">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={edit.coverImageUrl} alt="cover" className="h-14 w-20 rounded-xl object-cover border" />
-                          <div className="text-xs text-muted-foreground">Cover saat ini</div>
-                        </div>
-                      )}
+                      <div className="flex items-center gap-2">
+                        <input id="rmcover" type="checkbox" checked={removeCover} onChange={(e) => setRemoveCover(e.target.checked)} />
+                        <label htmlFor="rmcover" className="text-xs">Hapus cover</label>
+                      </div>
                     </div>
+
+                    {edit.coverImageUrl && !removeCover && (
+                      <div className="flex items-center gap-3">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={edit.coverImageUrl} alt="cover" className="h-14 w-20 rounded-xl object-cover border" />
+                        <div className="text-xs text-muted-foreground">Cover saat ini</div>
+                      </div>
+                    )}
                   </div>
                 </div>
 

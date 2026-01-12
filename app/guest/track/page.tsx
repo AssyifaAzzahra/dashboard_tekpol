@@ -1,18 +1,9 @@
 // app/guest/track/page.tsx
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
-import {
-  ArrowLeft,
-  Search,
-  KeyRound,
-  Eye,
-  EyeOff,
-  Copy,
-  Check,
-} from 'lucide-react';
-import { TEKPOL_APPS_BUCKET } from '@/lib/constants/sections/apps';
+import { ArrowLeft, Search, KeyRound, Eye, EyeOff, Copy, Check } from 'lucide-react';
 
 type Decision = 'PENDING' | 'APPROVED' | 'REJECTED';
 type Category = 'HO' | 'REGIONAL';
@@ -31,6 +22,7 @@ type GuestStatusResponse = {
     id: string;
     name: string;
     category: Category;
+    url: string | null; // ✅ dari DB
   };
   approvals: {
     id: string;
@@ -50,24 +42,10 @@ type GuestStatusResponse = {
   } | null;
 };
 
-type LinkItem = {
-  id: string;
-  title: string;
-  href: string;
-  tag?: string;
-};
-
-type AppsBucket = {
-  items?: LinkItem[];
-};
-
 const DASHBOARD_PATH = '/HomeHero';
 
-function normalizeKey(input: string): string {
-  return input
-    .trim()
-    .toLowerCase()
-    .replace(/[\s\-_./()]+/g, '');
+function isObject(x: unknown): x is Record<string, unknown> {
+  return typeof x === 'object' && x !== null;
 }
 
 function ensureHttp(url: string): string {
@@ -76,44 +54,10 @@ function ensureHttp(url: string): string {
   return `https://${u}`;
 }
 
-function buildAppUrlMap(items: LinkItem[]): Record<string, string> {
-  const map: Record<string, string> = {};
-  for (const it of items) {
-    if (!it.title || !it.href) continue;
-    map[normalizeKey(it.title)] = it.href;
-  }
-  return map;
-}
-
-function resolveAppUrl(
-  appName: string,
-  map: Record<string, string>,
-  items: LinkItem[],
-): string | null {
-  const key = normalizeKey(appName);
-
-  // 1) exact match setelah normalize
-  if (map[key]) return map[key];
-
-  // 2) loose match: contains
-  const found = items.find((it) => {
-    const t = normalizeKey(it.title);
-    return t.includes(key) || key.includes(t);
-  });
-
-  return found ? found.href : null;
-}
-
-function isObject(x: unknown): x is Record<string, unknown> {
-  return typeof x === 'object' && x !== null;
-}
-
 /** ✅ Type guard: jika true, credentials pasti ada (non-null) */
 function hasCredentials(
   result: GuestStatusResponse | null,
-): result is GuestStatusResponse & {
-  credentials: { username: string; password: string };
-} {
+): result is GuestStatusResponse & { credentials: { username: string; password: string } } {
   return !!result && result.status === 'APPROVED' && result.credentials !== null;
 }
 
@@ -126,11 +70,6 @@ export default function GuestTrackPage() {
 
   const [showPassword, setShowPassword] = useState(false);
   const [copiedField, setCopiedField] = useState<'username' | 'password' | null>(null);
-
-  // normalisasi bucket (tanpa any)
-  const bucket = TEKPOL_APPS_BUCKET as AppsBucket;
-  const bucketItems: LinkItem[] = bucket.items ?? [];
-  const appUrlMap = useMemo(() => buildAppUrlMap(bucketItems), [bucketItems]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -183,7 +122,7 @@ export default function GuestTrackPage() {
         setCopiedField(field);
         setTimeout(() => setCopiedField(null), 1500);
       })
-      .catch(() => { });
+      .catch(() => {});
   }
 
   const statusColor: Record<Decision, string> = {
@@ -192,23 +131,18 @@ export default function GuestTrackPage() {
     REJECTED: 'text-rose-600',
   };
 
-  function getTargetAppUrl(): string | null {
-    if (!result) return null;
-    const href = resolveAppUrl(result.app.name, appUrlMap, bucketItems);
-    return href ? ensureHttp(href) : null;
-  }
-
   function handleBackToDashboard() {
     window.location.assign(DASHBOARD_PATH);
   }
 
   function handleGoToApp() {
-    const url = getTargetAppUrl();
-    if (!url) {
-      alert(`Link untuk aplikasi "${result?.app?.name ?? '-'}" belum tersedia. Hubungi admin.`);
+    const raw = result?.app?.url ?? null;
+    if (!raw || !raw.trim()) {
+      alert(`Link untuk aplikasi "${result?.app?.name ?? '-'}" belum diisi admin.`);
       return;
     }
-    window.location.assign(url);
+    const url = ensureHttp(raw);
+    window.open(url, '_blank', 'noopener,noreferrer');
   }
 
   return (
@@ -224,9 +158,8 @@ export default function GuestTrackPage() {
             </h1>
             <p className="mt-1 text-xs md:text-sm text-slate-600 dark:text-slate-300">
               Masukkan <span className="font-semibold">Kode</span> dan{' '}
-              <span className="font-semibold">PIN</span> yang Anda dapat saat mengajukan
-              permohonan. Jika permohonan telah disetujui, informasi akun aplikasi akan
-              ditampilkan di bawah.
+              <span className="font-semibold">PIN</span> yang Anda dapat saat mengajukan permohonan.
+              Jika permohonan telah disetujui, informasi akun aplikasi akan ditampilkan di bawah.
             </p>
           </div>
 
@@ -242,10 +175,7 @@ export default function GuestTrackPage() {
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <label
-              htmlFor="trackingCode"
-              className="block text-xs font-medium text-slate-700 dark:text-slate-200 mb-1"
-            >
+            <label htmlFor="trackingCode" className="block text-xs font-medium text-slate-700 dark:text-slate-200 mb-1">
               Kode Permohonan
             </label>
             <div className="relative">
@@ -265,10 +195,7 @@ export default function GuestTrackPage() {
           </div>
 
           <div>
-            <label
-              htmlFor="trackingPin"
-              className="block text-xs font-medium text-slate-700 dark:text-slate-200 mb-1"
-            >
+            <label htmlFor="trackingPin" className="block text-xs font-medium text-slate-700 dark:text-slate-200 mb-1">
               PIN Permohonan
             </label>
             <div className="relative">
@@ -287,11 +214,7 @@ export default function GuestTrackPage() {
             </div>
           </div>
 
-          {errorMsg && (
-            <div className="text-sm text-rose-600 dark:text-rose-400">
-              {errorMsg}
-            </div>
-          )}
+          {errorMsg && <div className="text-sm text-rose-600 dark:text-rose-400">{errorMsg}</div>}
 
           <button
             type="submit"
@@ -307,14 +230,11 @@ export default function GuestTrackPage() {
 
         {/* Hasil */}
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-            Hasil Pencarian
-          </h2>
+          <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Hasil Pencarian</h2>
 
           {!result && !errorMsg && (
             <p className="text-xs text-slate-500">
-              Isi Kode dan PIN di atas, lalu klik{' '}
-              <span className="font-semibold">Cek Status</span>.
+              Isi Kode dan PIN di atas, lalu klik <span className="font-semibold">Cek Status</span>.
             </p>
           )}
 
@@ -323,10 +243,9 @@ export default function GuestTrackPage() {
               <div className="rounded-xl bg-slate-50/80 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-700/70 p-4 space-y-1">
                 <div>
                   <span className="font-semibold">Nama Tamu:</span>{' '}
-                  <span className="text-slate-800 dark:text-slate-100">
-                    {result.guestName || '-'}
-                  </span>
+                  <span className="text-slate-800 dark:text-slate-100">{result.guestName || '-'}</span>
                 </div>
+
                 <div>
                   <span className="font-semibold">Aplikasi:</span>{' '}
                   <span className="text-slate-800 dark:text-slate-100">
@@ -336,28 +255,30 @@ export default function GuestTrackPage() {
                     </span>
                   </span>
                 </div>
+
                 {result.division && (
                   <div>
-                    <span className="font-semibold">Asal Divisi / Instansi:</span>{' '}
-                    {result.division}
+                    <span className="font-semibold">Asal Divisi / Instansi:</span> {result.division}
                   </div>
                 )}
+
                 {result.reason && (
                   <div>
                     <span className="font-semibold">Alasan:</span> {result.reason}
                   </div>
                 )}
+
                 <div>
                   <span className="font-semibold">Status:</span>{' '}
                   <span className={statusColor[result.status]}>{result.status}</span>
                 </div>
+
                 <div>
-                  <span className="font-semibold">Diajukan pada:</span>{' '}
-                  {formatDate(result.createdAt)}
+                  <span className="font-semibold">Diajukan pada:</span> {formatDate(result.createdAt)}
                 </div>
               </div>
 
-              {/* ✅ APPROVED + credentials non-null (via type guard) */}
+              {/* ✅ APPROVED + credentials non-null */}
               {hasCredentials(result) && (
                 <>
                   <div className="rounded-xl bg-emerald-50/90 dark:bg-emerald-900/40 border border-emerald-500/70 p-4 space-y-3">
@@ -367,8 +288,7 @@ export default function GuestTrackPage() {
                           Informasi Akun Aplikasi
                         </div>
                         <div className="text-[11px] text-emerald-900/80 dark:text-emerald-100/80">
-                          Simpan baik-baik username &amp; password ini. Jangan dibagikan ke pihak yang
-                          tidak berkepentingan.
+                          Simpan baik-baik username &amp; password ini. Jangan dibagikan ke pihak yang tidak berkepentingan.
                         </div>
                       </div>
                       <button
@@ -393,9 +313,7 @@ export default function GuestTrackPage() {
                     <div className="grid md:grid-cols-2 gap-3 text-sm">
                       <div className="rounded-lg bg-white/90 dark:bg-emerald-950/60 border border-emerald-200/80 dark:border-emerald-700/80 p-3 flex items-center justify-between gap-3">
                         <div>
-                          <div className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-200">
-                            Username
-                          </div>
+                          <div className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-200">Username</div>
                           <div className="font-mono text-sm text-emerald-900 dark:text-emerald-50 break-all">
                             {result.credentials.username}
                           </div>
@@ -421,9 +339,7 @@ export default function GuestTrackPage() {
 
                       <div className="rounded-lg bg-white/90 dark:bg-emerald-950/60 border border-emerald-200/80 dark:border-emerald-700/80 p-3 flex items-center justify-between gap-3">
                         <div>
-                          <div className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-200">
-                            Password
-                          </div>
+                          <div className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-200">Password</div>
                           <div className="font-mono text-sm text-emerald-900 dark:text-emerald-50 break-all">
                             {showPassword ? result.credentials.password : '••••••••'}
                           </div>
@@ -449,7 +365,7 @@ export default function GuestTrackPage() {
                     </div>
                   </div>
 
-                  {/* ✅ 2 BUTTONS */}
+                  {/* ✅ BUTTON Masuk ke App */}
                   <div className="flex justify-center">
                     <button
                       type="button"
@@ -459,26 +375,34 @@ export default function GuestTrackPage() {
                       Masuk ke {result.app.name}
                     </button>
                   </div>
-
                 </>
               )}
 
               {result.status === 'PENDING' && (
                 <p className="text-xs text-slate-500">
-                  Permohonan Anda masih dalam proses. Silakan cek kembali setelah disetujui oleh
-                  Kasubag &amp; Kabag Tekpol.
+                  Permohonan Anda masih dalam proses. Silakan cek kembali setelah disetujui oleh Kasubag &amp; Kabag Tekpol.
                 </p>
               )}
 
               {result.status === 'REJECTED' && (
                 <p className="text-xs text-rose-600 dark:text-rose-400">
-                  Permohonan Anda ditolak. Silakan hubungi PIC/Kasubag/Kabag Tekpol untuk informasi
-                  lebih lanjut.
+                  Permohonan Anda ditolak. Silakan hubungi PIC/Kasubag/Kabag Tekpol untuk informasi lebih lanjut.
                 </p>
               )}
             </div>
           )}
         </section>
+
+        {/* Optional footer button */}
+        <div className="pt-2 flex justify-center">
+          <button
+            type="button"
+            onClick={handleBackToDashboard}
+            className="text-xs text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white underline underline-offset-4"
+          >
+            Kembali ke Dashboard
+          </button>
+        </div>
       </div>
     </main>
   );

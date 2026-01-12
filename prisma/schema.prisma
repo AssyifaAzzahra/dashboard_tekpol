@@ -7,14 +7,212 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id           String     @id @default(cuid())
+  name         String
+  email        String?    @unique
+  passwordHash String?
+  role         Role
+  isPic        Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  approvals    Approval[]
+  newsPosts    News[]     @relation("NewsAuthor")
+  picRequests  Request[]  @relation("PicUser")
+  requests     Request[]  @relation("RequestsByUser")
+}
+
+model App {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  category    Category
+  url         String
+  username    String?
+  password    String?
+  description String?
+
+  requests    Request[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([category, name])
+}
+
+model Request {
+  id            String      @id @default(cuid())
+  type          RequestType
+  requesterId   String?
+  appId         String
+  picId         String?
+  reason        String?
+  division      String?
+  status        Decision    @default(PENDING)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  rejectionNote String?
+  guestName     String?
+  trackingCode  String?     @unique
+  trackingPin   String?
+  guestEmail    String?
+  approvals     Approval[]
+  app           App         @relation(fields: [appId], references: [id], onDelete: Cascade)
+  pic           User?       @relation("PicUser", fields: [picId], references: [id])
+  requester     User?       @relation("RequestsByUser", fields: [requesterId], references: [id], onDelete: Cascade)
+}
+
+model Approval {
+  id         String    @id @default(cuid())
+  requestId  String
+  approverId String
+  role       Role
+  decision   Decision  @default(PENDING)
+  note       String?
+  decidedAt  DateTime?
+  approver   User      @relation(fields: [approverId], references: [id], onDelete: Cascade)
+  request    Request   @relation(fields: [requestId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  action     String
+  entity     String
+  entityId   String?
+  actorId    String?
+  actorEmail String?
+  meta       Json?
+  createdAt  DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([actorId])
+  @@index([createdAt])
+}
+
+enum NewsSource {
+  INTERNAL
+  INSTAGRAM
+}
+
+
+model News {
+  id            String     @id @default(cuid())
+  title         String
+  slug          String     @unique
+  excerpt       String?
+  content       String
+  coverImageUrl String?
+  isPublished   Boolean    @default(false)
+  publishedAt   DateTime?
+  authorId      String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  author        User?      @relation("NewsAuthor", fields: [authorId], references: [id])
+
+  // ✅ NEW
+  sourceType    NewsSource @default(INTERNAL)
+  instagramUrl  String?
+
+  @@index([isPublished, publishedAt])
+  @@index([sourceType])
+}
+
+
+model GalleryCategory {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  order     Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, order])
+}
+
+model Gallery {
+  id        String   @id @default(cuid())
+  title     String?
+  caption   String?
+  category  String?
+  imageUrl  String
+  order     Int      @default(0)
+  isVisible Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isVisible, order])
+  @@index([category])
+}
+
+model Pks {
+  id               String   @id @default(cuid())
+  name             String   @unique
+  slug             String   @unique
+  shortProfile     String?
+  address          String?
+  capacity         String?
+  yearOperation    Int?
+  lineCount        Int?
+  operationalNotes String?
+  photoUrl         String?
+  structureUrl     String?
+  certificateUrl   String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Ppis {
+  id               String   @id @default(cuid())
+  name             String
+  slug             String   @unique
+  shortProfile     String?
+  address          String?
+  capacity         String?
+  yearOperation    Int?
+  lineCount        Int?
+  operationalNotes String?
+  photoUrl         String?
+  structureUrl     String?
+  certificateUrl   String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Ppkr {
+  id               String   @id @default(cuid())
+  name             String
+  slug             String   @unique
+  shortProfile     String?
+  address          String?
+  capacity         String?
+  yearOperation    Int?
+  lineCount        Int?
+  operationalNotes String?
+  photoUrl         String?
+  structureUrl     String?
+  certificateUrl   String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model PksProfileDeck {
+  id        String   @id @default(cuid())
+  pksId     String   @unique
+  fileUrl   String
+  fileName  String
+  fileType  String        // wajib
+  coverUrl  String?       // optional
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 enum Role {
-  SUPERADMIN
-  ADMIN
   PKWT
   KARYAWAN
   KASUBAG
   KABAG
   GUEST
+  SUPERADMIN
+  ADMIN
 }
 
 enum Category {
@@ -31,138 +229,4 @@ enum Decision {
   PENDING
   APPROVED
   REJECTED
-}
-
-model User {
-  id           String   @id @default(cuid())
-  name         String
-  email        String?  @unique
-  passwordHash String?
-  role         Role
-  isPic        Boolean  @default(false)
-  createdAt    DateTime @default(now())
-
-  requests    Request[]  @relation("RequestsByUser")
-  approvals   Approval[]
-  picRequests Request[]  @relation("PicUser")
-
-  // ✅ yang benar (karena modelnya "News")
-  newsPosts News[] @relation("NewsAuthor")
-}
-
-model App {
-  id          String    @id @default(cuid())
-  name        String    @unique
-  category    Category
-  url         String?   // ✅ LINK APP (baru)
-  username    String
-  password    String
-  description String?
-  requests    Request[]
-}
-
-model Request {
-  id   String      @id @default(cuid())
-  type RequestType
-
-  // requester (kalau user login)
-  requester   User?   @relation("RequestsByUser", fields: [requesterId], references: [id], onDelete: Cascade)
-  requesterId String?
-
-  // aplikasi yang diminta (untuk dropdown nama apps)
-  app   App    @relation(fields: [appId], references: [id], onDelete: Cascade)
-  appId String
-
-  pic           User?      @relation("PicUser", fields: [picId], references: [id])
-  picId         String?
-  reason        String?
-  division      String?
-  status        Decision   @default(PENDING)
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  approvals     Approval[]
-  rejectionNote String?
-
-  // GUEST TANPA LOGIN
-  guestName    String? // nama guest yang mengajukan
-  trackingCode String? @unique
-  trackingPin  String?
-
-  // ⬇⬇⬇ TAMBAHAN OPSIONAL: supaya bisa kirim username/password ke guest via email
-  guestEmail String? // email guest untuk kirim kredensial
-}
-
-model Approval {
-  id         String    @id @default(cuid())
-  request    Request   @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  requestId  String
-  approver   User      @relation(fields: [approverId], references: [id], onDelete: Cascade)
-  approverId String
-  role       Role
-  decision   Decision  @default(PENDING)
-  note       String?
-  decidedAt  DateTime?
-}
-
-model AuditLog {
-  id         String   @id @default(cuid())
-  action     String // e.g. CREATE_APP, UPDATE_USER_ROLE, APPROVE_REQUEST, dll
-  entity     String // e.g. "App", "User", "Request"
-  entityId   String? // id target (kalau ada)
-  actorId    String? // id user pelaku (kalau ada)
-  actorEmail String? // email user pelaku (kalau ada)
-  meta       Json? // detail perubahan (before/after)
-  createdAt  DateTime @default(now())
-
-  @@index([entity, entityId])
-  @@index([actorId])
-  @@index([createdAt])
-}
-
-model News {
-  id            String    @id @default(cuid())
-  title         String
-  slug          String    @unique
-  excerpt       String?
-  content       String
-  coverImageUrl String?
-  isPublished   Boolean   @default(false)
-  publishedAt   DateTime?
-
-  author   User?   @relation("NewsAuthor", fields: [authorId], references: [id], onDelete: SetNull)
-  authorId String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([isPublished, publishedAt])
-}
-
-model GalleryCategory {
-  id       String  @id @default(cuid())
-  name     String  @unique
-  slug     String  @unique
-  order    Int     @default(0)
-  isActive Boolean @default(true)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([isActive, order])
-}
-
-model Gallery {
-  id        String  @id @default(cuid())
-  title     String?
-  caption   String?
-  category  String?
-  imageUrl  String
-  order     Int     @default(0)
-  isVisible Boolean @default(true)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([isVisible, order])
-  @@index([category])
 }

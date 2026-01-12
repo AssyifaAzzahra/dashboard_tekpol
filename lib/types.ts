@@ -15,30 +15,28 @@ export type ContentBucket = {
 };
 
 export type PathKey =
-  | 'home'
-  | 'pengolahan/tukangolah'
-  | 'investasi/sub-instalasi-pks'
-  | 'teknik/sub'
-  | 'tekpol-apps'
-  | 'galeri';
+  | "home"
+  | "pengolahan/tukangolah"
+  | "investasi/sub-instalasi-pks"
+  | "teknik/sub"
+  | "tekpol-apps"
+  | "galeri";
 
 export type HomeView =
-  | 'root'
-  | 'pks-list'
-  | 'pks-detail'
-  | 'ppis'
-  | 'ppkr'
-  // tambahan inline di Home:
-  | 'creds'     // daftar kredensial staf (KARYAWAN/KASUBAG/KABAG)
-  | 'request'   // form guest/pkwt
-  | 'approval'// daftar permohonan untuk approver (KASUBAG/KABAG/PIC)
-  | 'info-login'; 
-  
+  | "root"
+  | "pks-list"
+  | "pks-detail"
+  | "ppis"
+  | "ppkr"
+  | "creds"
+  | "request"
+  | "approval"
+  | "info-login";
 
 export type Pks = {
   id: string;
   nama: string;
-  jenis: 'PKS';
+  jenis: "PKS";
   alamat: string;
   kapasitasTbsPerJam: number;
 };
@@ -56,6 +54,8 @@ export type PksDetail = {
   catatan: string[];
 };
 
+export type NewsSource = "INTERNAL" | "INSTAGRAM";
+
 export type NewsItem = {
   id: string;
   title: string;
@@ -67,12 +67,16 @@ export type NewsItem = {
   youtubeId?: string;
   videoUrl?: string;
   labelAbove?: string;
+
+  // optional kalau nanti kamu butuh di tempat lain
+  sourceType?: NewsSource;
+  instagramUrl?: string | null;
 };
 
 // ===== tipe ringan untuk auth & data kredensial/approval =====
-export type Role = 'PKWT' | 'KARYAWAN' | 'KASUBAG' | 'KABAG' | 'GUEST';
-export type Decision = 'PENDING' | 'APPROVED' | 'REJECTED';
-export type Category = 'HO' | 'REGIONAL';
+export type Role = "PKWT" | "KARYAWAN" | "KASUBAG" | "KABAG" | "GUEST";
+export type Decision = "PENDING" | "APPROVED" | "REJECTED";
+export type Category = "HO" | "REGIONAL";
 
 export type App = {
   id: string;
@@ -104,7 +108,7 @@ export type Approval = {
 
 export type Request = {
   id: string;
-  type: 'PKWT' | 'GUEST';
+  type: "PKWT" | "GUEST";
   appId: string;
   requesterId: string;
   picId?: string | null;

@@ -1,7 +1,7 @@
 // app/api/guest-requests/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { RequestType, Category, Role } from "@prisma/client";
+import { RequestType, Role } from "@prisma/client";
 import { z } from "zod";
 
 // Skema body permohonan tamu
@@ -16,9 +16,7 @@ const GuestRequestSchema = z.object({
 function generateTrackingCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let code = "";
-  for (let i = 0; i < 8; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)];
-  }
+  for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
   return code;
 }
 
@@ -33,59 +31,44 @@ export async function POST(req: Request) {
     const parsed = GuestRequestSchema.safeParse(json);
 
     if (!parsed.success) {
-      const firstError =
-        parsed.error.issues[0]?.message ?? "Data tidak valid";
+      const firstError = parsed.error.issues[0]?.message ?? "Data tidak valid";
+      return NextResponse.json({ message: firstError }, { status: 400 });
+    }
+
+    const { guestName, appName, division, reason } = parsed.data;
+
+    // ✅ 1) Cari App berdasarkan name (HARUS SUDAH ADA)
+    const app = await prisma.app.findFirst({
+      where: { name: appName.trim() },
+      select: { id: true, name: true, url: true },
+    });
+
+    if (!app) {
       return NextResponse.json(
-        { message: firstError },
+        { message: `Aplikasi "${appName.trim()}" belum terdaftar. Hubungi admin untuk menambahkan aplikasi.` },
         { status: 400 }
       );
     }
 
-    const {
-      guestName,
-      appName,
-      division,
-      reason,
-    } = parsed.data;
-
-    // 1️⃣ Cari App berdasarkan name; kalau belum ada, buat baru
-    let app = await prisma.app.findFirst({
-      where: { name: appName.trim() },
-    });
-
-    if (!app) {
-      app = await prisma.app.create({
-        data: {
-          name: appName.trim(),
-          category: Category.HO, // default HO
-          username: "-",         // placeholder
-          password: "-",         // placeholder
-          description: null,
-        },
-      });
+    // Optional: paksa app harus punya url
+    if (!app.url || !app.url.trim()) {
+      return NextResponse.json(
+        { message: `Aplikasi "${app.name}" belum memiliki URL. Hubungi admin untuk melengkapi link aplikasi.` },
+        { status: 400 }
+      );
     }
 
-    // 2️⃣ Generate trackingCode unik
+    // ✅ 2) Generate trackingCode unik
     let trackingCode = generateTrackingCode();
-    let existing = await prisma.request.findFirst({
-      where: { trackingCode },
-      select: { id: true },
-    });
-
-    while (existing) {
+    while (await prisma.request.findFirst({ where: { trackingCode }, select: { id: true } })) {
       trackingCode = generateTrackingCode();
-      existing = await prisma.request.findFirst({
-        where: { trackingCode },
-        select: { id: true },
-      });
     }
 
     const trackingPin = generatePin();
 
-    // 3️⃣ Buat Request + Approval untuk KASUBAG & KABAG dalam satu transaksi
-    const request = await prisma.$transaction(async (tx) => {
-      // 3a. Buat request GUEST
-      const req = await tx.request.create({
+    // ✅ 3) Buat Request + Approval untuk KASUBAG & KABAG dalam satu transaksi
+    const created = await prisma.$transaction(async (tx) => {
+      const reqRow = await tx.request.create({
         data: {
           type: RequestType.GUEST,
           appId: app.id,
@@ -94,7 +77,6 @@ export async function POST(req: Request) {
           reason: reason?.trim() || undefined,
           trackingCode,
           trackingPin,
-          // status default PENDING dari schema
         },
         select: {
           id: true,
@@ -104,37 +86,27 @@ export async function POST(req: Request) {
         },
       });
 
-      // 3b. Cari semua user yang berperan sebagai KASUBAG & KABAG
       const approvers = await tx.user.findMany({
-        where: {
-          role: {
-            in: [Role.KASUBAG, Role.KABAG],
-          },
-        },
+        where: { role: { in: [Role.KASUBAG, Role.KABAG] } },
         select: { id: true, role: true },
       });
 
-      // 3c. Buat baris Approval untuk tiap approver
       if (approvers.length > 0) {
         await tx.approval.createMany({
           data: approvers.map((u) => ({
-            requestId: req.id,
+            requestId: reqRow.id,
             approverId: u.id,
             role: u.role,
-            // decision default PENDING (dari schema)
           })),
         });
       }
 
-      return req;
+      return reqRow;
     });
 
-    return NextResponse.json(request, { status: 201 });
+    return NextResponse.json(created, { status: 201 });
   } catch (err) {
     console.error("Error creating guest request:", err);
-    return NextResponse.json(
-      { message: "Terjadi kesalahan pada server" },
-      { status: 500 }
-    );
+    return NextResponse.json({ message: "Terjadi kesalahan pada server" }, { status: 500 });
   }
 }

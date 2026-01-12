@@ -1,36 +1,36 @@
-import { NextRequest, NextResponse } from "next/server";
+// app/api/news/route.ts
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { NewsSource } from "@prisma/client";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// ✅ Next.js 16: params harus Promise
-export async function GET(
-  _req: NextRequest,
-  context: { params: Promise<{ slug: string }> }
-) {
-  const { slug } = await context.params;
-  const safeSlug = (slug ?? "").trim();
-
-  if (!safeSlug) {
-    return NextResponse.json({ error: "Missing slug" }, { status: 400 });
-  }
-
-  const post = await prisma.news.findFirst({
-    where: { slug: safeSlug, isPublished: true },
+export async function GET() {
+  const data = await prisma.news.findMany({
+    where: { isPublished: true, sourceType: NewsSource.INTERNAL },
+    orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+    take: 20,
+    select: {
+      id: true,
+      title: true,
+      slug: true,
+      excerpt: true,
+      coverImageUrl: true,
+      publishedAt: true,
+      createdAt: true,
+    },
   });
 
-  if (!post) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
-  return NextResponse.json({
-    id: post.id,
-    title: post.title,
-    slug: post.slug,
-    excerpt: post.excerpt,
-    content: post.content,
-    image: post.coverImageUrl,
-    date: (post.publishedAt ?? post.createdAt).toISOString(),
-  });
+  return NextResponse.json(
+    data.map((n) => ({
+      id: n.id,
+      title: n.title,
+      slug: n.slug,
+      excerpt: n.excerpt,
+      image: n.coverImageUrl,
+      date: (n.publishedAt ?? n.createdAt).toISOString(),
+      tag: "Berita",
+    }))
+  );
 }

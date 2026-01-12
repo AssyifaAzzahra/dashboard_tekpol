@@ -15,6 +15,13 @@ type PublicNews = {
   tag?: string;
 };
 
+type IgItem = {
+  id: string;
+  title: string;
+  instagramUrl: string | null;
+  date?: string;
+};
+
 type VideoItem = {
   id: string;
   title: string;
@@ -38,16 +45,40 @@ function toYouTubeEmbed(u: string) {
   }
 }
 
+function parseInstagramEmbed(urlStr: string | null | undefined): string | null {
+  if (!urlStr) return null;
+  try {
+    const url = new URL(urlStr);
+    const host = url.hostname.replace(/^www\./, "").toLowerCase();
+    if (host !== "instagram.com" && host !== "instagr.am") return null;
+
+    const parts = url.pathname.split("/").filter(Boolean);
+    if (parts.length < 2) return null;
+
+    const kind = parts[0]; // p | reel
+    const code = parts[1];
+    if (!code || (kind !== "p" && kind !== "reel")) return null;
+
+    // pakai captioned biar mirip contoh “Latest News”
+    return `https://www.instagram.com/${kind}/${code}/embed/captioned/`;
+  } catch {
+    return null;
+  }
+}
+
 export default function NewsSection() {
   const [news, setNews] = React.useState<PublicNews[]>([]);
-  const [loading, setLoading] = React.useState(true);
+  const [ig, setIg] = React.useState<IgItem[]>([]);
+  const [loadingNews, setLoadingNews] = React.useState(true);
+  const [loadingIg, setLoadingIg] = React.useState(true);
 
+  // ===== load berita (artikel) =====
   React.useEffect(() => {
     let alive = true;
 
     (async () => {
       try {
-        setLoading(true);
+        setLoadingNews(true);
         const res = await fetch("/api/news", { cache: "no-store" });
         if (!res.ok) throw new Error(await res.text());
         const data = (await res.json()) as PublicNews[];
@@ -58,7 +89,7 @@ export default function NewsSection() {
         setNews([]);
       } finally {
         if (!alive) return;
-        setLoading(false);
+        setLoadingNews(false);
       }
     })();
 
@@ -67,7 +98,33 @@ export default function NewsSection() {
     };
   }, []);
 
-  // ✅ VIDEO: sesuai link yang kamu kasih (buka di YouTube harus jalan)
+  // ===== load instagram latest =====
+  React.useEffect(() => {
+    let alive = true;
+
+    (async () => {
+      try {
+        setLoadingIg(true);
+        const res = await fetch("/api/instagram", { cache: "no-store" });
+        if (!res.ok) throw new Error(await res.text());
+        const data = (await res.json()) as IgItem[];
+        if (!alive) return;
+        setIg((Array.isArray(data) ? data : []).slice(0, 6));
+      } catch {
+        if (!alive) return;
+        setIg([]);
+      } finally {
+        if (!alive) return;
+        setLoadingIg(false);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // ===== video youtube (tetap) =====
   const videos: VideoItem[] = [
     {
       id: "tekpol",
@@ -90,14 +147,13 @@ export default function NewsSection() {
   ];
 
   // =========================
-  // NEWS: DRAG + ARROW (FIX CLICK LINK)  ✅ BIARKAN, TIDAK DIUBAH
+  // NEWS: DRAG + ARROW
   // =========================
   const newsScrollRef = React.useRef<HTMLDivElement>(null);
   const isNewsDownRef = React.useRef(false);
   const newsStartXRef = React.useRef(0);
   const newsStartScrollLeftRef = React.useRef(0);
   const movedRef = React.useRef(false);
-
   const [newsDragging, setNewsDragging] = React.useState(false);
 
   const isInteractiveTarget = (target: EventTarget | null) => {
@@ -157,7 +213,7 @@ export default function NewsSection() {
   };
 
   // =========================
-  // VIDEO: DRAG + ARROW + LINK FIX ✅ (HANYA BAGIAN INI YANG DIPERBAIKI)
+  // VIDEO: DRAG + ARROW + LINK FIX
   // =========================
   const videoScrollRef = React.useRef<HTMLDivElement>(null);
   const isVideoDownRef = React.useRef(false);
@@ -167,7 +223,6 @@ export default function NewsSection() {
   const [videoDragging, setVideoDragging] = React.useState(false);
 
   const onVideoPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    // ✅ kalau klik di link -> jangan mulai drag
     if ((e.target as HTMLElement).closest("a")) return;
 
     const el = videoScrollRef.current;
@@ -216,9 +271,10 @@ export default function NewsSection() {
   };
 
   return (
-    <section className="mt-6">
+    <section className="mt-6 space-y-4">
+      {/* ===== row atas: Berita Terkini + YouTube (tetap sama ukuran) ===== */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 items-stretch">
-        {/* ========== BOX 1: BERITA TERKINI (TIDAK DIUBAH) ========== */}
+        {/* ========== BOX 1: BERITA TERKINI ========== */}
         <div className="h-full flex flex-col rounded-2xl border border-slate-200 bg-white/80 shadow-sm p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div className="inline-flex items-center gap-2 bg-emerald-50 px-3 py-1 rounded-lg">
@@ -246,7 +302,7 @@ export default function NewsSection() {
             </div>
           </div>
 
-          {loading ? (
+          {loadingNews ? (
             <div className="mt-auto text-sm text-slate-500">Memuat berita...</div>
           ) : news.length === 0 ? (
             <div className="mt-auto text-sm text-slate-500">
@@ -322,7 +378,7 @@ export default function NewsSection() {
           )}
         </div>
 
-        {/* ========== BOX 2: VIDEO YOUTUBE (DIPERBAIKI) ========== */}
+        {/* ========== BOX 2: VIDEO YOUTUBE ========== */}
         <div className="h-full flex flex-col rounded-2xl border border-slate-200 bg-white/80 shadow-sm p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div className="inline-flex items-center gap-2 bg-rose-50 px-3 py-1 rounded-lg">
@@ -330,7 +386,6 @@ export default function NewsSection() {
               <h3 className="text-[14px] font-semibold text-rose-700">Video YouTube</h3>
             </div>
 
-            {/* ✅ tombol panah kiri kanan khusus video */}
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -371,9 +426,7 @@ export default function NewsSection() {
               >
                 <div className="relative w-full aspect-[16/10]">
                   <iframe
-                    className={`absolute inset-0 h-full w-full rounded-t-lg ${
-                      videoDragging ? "pointer-events-none" : ""
-                    }`}
+                    className={`absolute inset-0 h-full w-full rounded-t-lg ${videoDragging ? "pointer-events-none" : ""}`}
                     src={toYouTubeEmbed(n.videoUrl)}
                     title={n.title}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -384,7 +437,6 @@ export default function NewsSection() {
                   <h4 className="text-[11px] font-semibold leading-tight line-clamp-2">{n.title}</h4>
                   <p className="mt-1 text-[9px] text-slate-600 line-clamp-2">{n.body}</p>
 
-                  {/* ✅ link fix: pasti kebuka */}
                   <a
                     href={n.videoUrl}
                     target="_blank"
@@ -402,6 +454,46 @@ export default function NewsSection() {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* ===== row bawah: Latest News (Instagram) ===== */}
+      <div className="rounded-2xl border border-slate-200 bg-white/80 shadow-sm p-4">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="text-[14px] font-semibold text-slate-900">Latest News</div>
+          <div className="text-xs text-slate-500">Instagram</div>
+        </div>
+
+        {loadingIg ? (
+          <div className="text-sm text-slate-500">Memuat Instagram...</div>
+        ) : ig.length === 0 ? (
+          <div className="text-sm text-slate-500">Belum ada posting Instagram.</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {ig.map((item) => {
+              const embed = parseInstagramEmbed(item.instagramUrl);
+              return (
+                <div key={item.id} className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+                  <div className="relative">
+                    {embed ? (
+                      <iframe
+                        src={embed}
+                        className="w-full"
+                        height={520}
+                        scrolling="no"
+                        frameBorder={0}
+                        allow="encrypted-media; clipboard-write"
+                        title={item.title}
+                      />
+                    ) : (
+                      <div className="p-4 text-sm text-slate-500">Link Instagram tidak valid.</div>
+                    )}
+                  </div>
+
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </section>
   );

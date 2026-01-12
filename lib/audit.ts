@@ -1,4 +1,3 @@
-// lib/audit.ts
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 
@@ -8,7 +7,7 @@ export async function writeAuditLog(params: {
   entityId?: string | null;
   actorId?: string | null;
   actorEmail?: string | null;
-  meta?: Prisma.InputJsonValue; // penting: InputJsonValue (bukan JsonValue)
+  meta?: Prisma.InputJsonValue;
 }) {
   const { action, entity, entityId, actorId, actorEmail, meta } = params;
 
@@ -19,7 +18,6 @@ export async function writeAuditLog(params: {
       entityId: entityId ?? null,
       actorId: actorId ?? null,
       actorEmail: actorEmail ?? null,
-      // ✅ kalau meta undefined, Prisma tidak akan menyet kolom ini
       ...(meta === undefined ? {} : { meta }),
     },
   });

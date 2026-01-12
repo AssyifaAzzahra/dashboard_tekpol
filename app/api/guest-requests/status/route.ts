@@ -49,18 +49,13 @@ export async function POST(req: Request) {
     const parsed = StatusRequestSchema.safeParse(json);
 
     if (!parsed.success) {
-      const firstError =
-        parsed.error.issues[0]?.message || "Data tidak valid";
-      return NextResponse.json(
-        { message: firstError },
-        { status: 400 }
-      );
+      const firstError = parsed.error.issues[0]?.message || "Data tidak valid";
+      return NextResponse.json({ message: firstError }, { status: 400 });
     }
 
     const { trackingCode, trackingPin } = parsed.data;
 
-    // 👉 Prisma client kamu belum kenal field trackingCode/trackingPin,
-    // jadi kita buat object where sebagai `any` supaya TS tidak cek propertinya.
+    // Prisma client kamu belum kenal field trackingCode/trackingPin
     const where: any = {
       trackingCode,
       trackingPin,
@@ -78,38 +73,39 @@ export async function POST(req: Request) {
       },
     });
 
-    // cast ke tipe lokal supaya boleh pakai guestName/trackingCode/dll
     const request = raw as RequestWithGuestAndApprovals | null;
 
     if (!request) {
-      return NextResponse.json(
-        { message: "Kode atau PIN tidak ditemukan" },
-        { status: 404 }
-      );
+      return NextResponse.json({ message: "Kode atau PIN tidak ditemukan" }, { status: 404 });
     }
 
-    // 2️⃣ Ambil data App berdasarkan appId
+    // 2️⃣ Ambil data App (ambil url juga)
     const app = await prisma.app.findUnique({
       where: { id: request.appId },
+      select: {
+        id: true,
+        name: true,
+        category: true,
+        url: true,       // ✅ penting untuk tombol "Masuk ke ..."
+        username: true,
+        password: true,
+      },
     });
 
     if (!app) {
-      return NextResponse.json(
-        { message: "Aplikasi untuk permohonan ini tidak ditemukan" },
-        { status: 500 }
-      );
+      return NextResponse.json({ message: "Aplikasi untuk permohonan ini tidak ditemukan" }, { status: 500 });
     }
 
     // 3️⃣ Hanya kalau status APPROVED, kirim username & password
     const credentials =
       request.status === Decision.APPROVED
         ? {
-            username: app.username,
-            password: app.password,
+            username: app.username ?? "",
+            password: app.password ?? "",
           }
         : null;
 
-    // 4️⃣ Bentuk payload rapi untuk frontend /guest/track
+    // 4️⃣ Payload ke frontend (tambahkan url)
     const payload = {
       id: request.id,
       guestName: request.guestName,
@@ -123,6 +119,7 @@ export async function POST(req: Request) {
         id: app.id,
         name: app.name,
         category: app.category,
+        url: app.url ?? null, // ✅ ini yang dipakai front-end untuk redirect
       },
       approvals: request.approvals.map((a) => ({
         id: a.id,
@@ -136,16 +133,12 @@ export async function POST(req: Request) {
           email: a.approver.email,
         },
       })),
-      // null kalau belum APPROVED, di-cek di frontend
       credentials,
     };
 
     return NextResponse.json(payload, { status: 200 });
   } catch (err) {
     console.error("Error checking guest request status:", err);
-    return NextResponse.json(
-      { message: "Terjadi kesalahan pada server" },
-      { status: 500 }
-    );
+    return NextResponse.json({ message: "Terjadi kesalahan pada server" }, { status: 500 });
   }
 }

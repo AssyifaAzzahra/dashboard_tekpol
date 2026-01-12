@@ -21,8 +21,8 @@ type ExtraGambar = {
   fotoPks: string;
   fotoStruktur: string;
   sejarahSingkat: string;
-  /** gambar sertifikasi (>=0). akan ditampilkan 2 per-slide */
   galeri?: string[];
+  hideSertifikasi?: boolean;
 };
 
 const IMAGE_MAP: Record<string, ExtraGambar> = {
@@ -30,15 +30,15 @@ const IMAGE_MAP: Record<string, ExtraGambar> = {
     fotoPks: '/images/pks/pksTanahPutih.png',
     fotoStruktur: '/images/pks/strukturTanahPutih.png',
     sejarahSingkat: 'Pabrik Kelapa Sawit (PKS) Tanah Putih merupakan salah satu unit kebun yang dimiliki oleh PT Perkebunan Nusantara IV Regional III di bawah Distrik Timur. Pabrik ini berdiri di atas lahan seluas 19 hektare dengan kapasitas terpasang 60 ton tandan buah segar (TBS) per jam. Secara geografis, PKS Tanah Putih terletak di Desa Pasir Putih Utara, Kecamatan Balai Jaya, Kabupaten Rokan Hilir, Provinsi Riau, berjarak sekitar 219 kilometer dari Kota Pekanbaru dan berada pada koordinat 100°30’–44°43’ Bujur Timur serta 1°42’–1°45’ Lintang Utara. Sumber bahan baku TBS berasal dari kebun inti, kebun plasma, serta pihak ketiga (P3). Hasil olahan utama pabrik ini adalah Crude Palm Oil (CPO) dan Palm Kernel.',
-    galeri: ['/images/pks/tanah-putih-3.jpg'],
+    hideSertifikasi: true,
   },
   'pks-tanjung-medan': {
     fotoPks: '/images/pks.jpg',
     fotoStruktur: '/images/pks/strukturTanjungMedan.png',
     sejarahSingkat:
       'Pabrik kelapa sawit (PKS) Tanjung Medan adalah salah satu pabrik kelapa sawit Badan Usaha Milik Negara (BUMN) PT. Perkebunan Nusantara -V yang terletak di Desa Pujud, Kecamatan Pujkud, Kabupaten Rokan Hilir Riau. Pada bulan desember 2023 berganti nama mnejadi PT. Perkebunan Nusantara IV Regional III kebun/PKS Tanjung Medan. Pabrik Kelapa Sawit ini dibangun pada tahun 1995 oleh PT. Kesco Teguh Perkasa dengan total luas areal 126.90 Ha.',
-    galeri: ['/images/pks/tanjung-medan-3.jpg'],
-  },
+    hideSertifikasi: true,
+    },
 'pks-sei-galuh': {
   fotoPks: '/images/pks.jpg',
   fotoStruktur: '/images/pks/strukturSeiGaluh.png',
@@ -62,7 +62,7 @@ const IMAGE_MAP: Record<string, ExtraGambar> = {
     fotoPks: '/images/pks.jpg',
     fotoStruktur: '/images/pks/strukturSEIGARO.png',
     sejarahSingkat: `Kebun dan Pabrik Kelapa Sawit (PKS) Sei Garo berlokasi di Desa Pantai Cermin, Kecamatan Tapung, Kabupaten Kampar, Provinsi Riau, sekitar 68 kilometer dari Kota Pekanbaru. Pembangunan proyek Kebun Sei Garo didasarkan pada Surat Keputusan Menteri Pertanian RI No. KB.320/734/Melin/TX/1983 tanggal 26 September 1983, sebagai bagian dari proyek pembangunan PTP-V Sei Karang dengan nama proyek “PTPV Kebun NES II ADB Sei Garo”. Berdasarkan Surat Keputusan Direksi No. 5.11/SK/06/III/2016 tanggal 2 Maret 2016, Kebun Inti KKPA Sei Garo kemudian digabungkan dalam satu manajemen. Pada Oktober 2019, Kebun Inti/KKPA Sei Garo resmi menjadi Kebun Sei Garo yang mencakup PKS Sei Garo hingga sekarang. Secara geografis, kebun ini berbatasan dengan Desa Plambayalan dan Desa Mukti Sari di utara, Desa Pantai Cermin dan Desa Indra Sakti di timur, Desa Gading Sari dan Desa Indrapuri di selatan, serta Desa Kijang Rejo dan Desa Sumber Makmur di barat. PKS Sei Garo merupakan pabrik kelapa sawit yang berlokasi di Afdeling IV Sei Garo, Desa Gading Sari, Kecamatan Tapung, Kabupaten Kampar, dengan kapasitas terpasang 30 ton TBS per jam. Pembangunan pabrik dimulai pada tahun 1994 dan mulai beroperasi pada tahun 1996.`,
-    galeri: ['/images/pks/seigaro-3.jpg'],
+  hideSertifikasi: true,
   },
 
   'pks-sei-buatan': {
@@ -88,13 +88,13 @@ const IMAGE_MAP: Record<string, ExtraGambar> = {
     fotoPks: '/images/pks.jpg',
     fotoStruktur: '/images/struktur.png',
     sejarahSingkat: 'Penyangga pasokan Bengkalis; fokus otomasi pemantauan proses.',
-    galeri: ['/images/pks/terantam-3.jpg'],
+    hideSertifikasi: true,
   },
   'pks-sei-tapung': {
     fotoPks: '/images/pks.jpg',
     fotoStruktur: '/images/pks/strukturSeiTapung.png',
     sejarahSingkat: 'Pabrik Kelapa Sawit (PKS) Sei Tapung yang berlokasi di Desa Tandun, Kecamatan Tandun, Kabupaten Rokan Hulu, telah beroperasi selama 32 tahun sejak berdiri pada tahun 1987 dengan kapasitas awal 30 ton TBS per jam. Pabrik ini merupakan PKS eks PTP V sebelum akhirnya digabung dengan unit pengembangan eks PTP II dan PTP IV menjadi PTPN V pada 11 Maret 1996. Seiring meningkatnya kebutuhan pengolahan akibat luasnya areal Kebun Inti dan Plasma Sei Tapung serta tambahan pasokan TBS dari kebun seinduk yang saat itu belum memiliki pabrik, kapasitas olah PKS Sei Tapung ditingkatkan menjadi 60 ton TBS per jam pada tahun 1988.',
-    galeri: ['/images/pks/sei-tapung-3.jpg'],
+    hideSertifikasi: true,
   },
   'pks-sei-rokan': {
     fotoPks: '/images/pks/pksSeiRokan.png',
@@ -113,23 +113,13 @@ const IMAGE_MAP: Record<string, ExtraGambar> = {
   },
 };
 
-const DEFAULT_FOTO_PKS = '/images/pks.jpg';
-const DEFAULT_FOTO_STRUKTUR = '/images/strukturlda.png';
-const DEFAULT_SEJARAH = 'Sejarah singkat belum tersedia.';
-
 export function getPksDetail(id: string): PksDetail | null {
   const base = PKS_LIST.find((p) => p.id === id);
   if (!base) return null;
 
-  const extra: ExtraGambar =
-    IMAGE_MAP[id] ?? {
-      fotoPks: DEFAULT_FOTO_PKS,
-      fotoStruktur: DEFAULT_FOTO_STRUKTUR,
-      sejarahSingkat: DEFAULT_SEJARAH,
-      galeri: [],
-    };
+  const extra = IMAGE_MAP[id];
 
-  const detail: PksDetail = {
+  return {
     id: base.id,
     nama: base.nama,
     infoUmum: {
@@ -139,19 +129,11 @@ export function getPksDetail(id: string): PksDetail | null {
       tahunOperasional: 2014,
       jumlahLine: base.kapasitasTbsPerJam >= 60 ? 2 : 1,
     },
-    catatan: [
-    ],
-  };
-
-  const imagesUtama = [extra.fotoPks, extra.fotoStruktur];
-  const galeri = extra.galeri ?? [];
-
-  return {
-    ...(detail as any),
-    images: [...imagesUtama, ...galeri], // kompatibel lama
-    fotoPks: extra.fotoPks,
-    fotoStruktur: extra.fotoStruktur,
-    sejarahSingkat: extra.sejarahSingkat,
-    galeri, // untuk slider Sertifikasi
+    catatan: [],
+    fotoPks: extra?.fotoPks,
+    fotoStruktur: extra?.fotoStruktur,
+    sejarahSingkat: extra?.sejarahSingkat,
+    galeri: extra?.galeri ?? [],
+    hideSertifikasi: extra?.hideSertifikasi ?? false,
   } as any;
 }

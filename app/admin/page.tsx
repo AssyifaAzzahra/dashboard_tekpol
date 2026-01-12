@@ -2,6 +2,8 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import AdminShell from "@/components/admin/AdminShell";
+import LatestNewsCard from "@/components/admin/LatestNewsCard";
+
 import {
   LayoutDashboard,
   ClipboardList,
@@ -138,14 +140,12 @@ function StatCard({
         "transition hover:-translate-y-0.5 hover:shadow-md"
       )}
     >
-      {/* soft gradient backdrop */}
       <div
         className={cn(
           "pointer-events-none absolute inset-0 bg-gradient-to-br opacity-100",
           t.bg
         )}
       />
-      {/* subtle glow blob */}
       <div
         className={cn(
           "pointer-events-none absolute -right-10 -top-10 h-24 w-24 rounded-full blur-2xl",
@@ -283,14 +283,12 @@ function QuickActionCard({
         "transition hover:-translate-y-0.5 hover:shadow-md"
       )}
     >
-      {/* top subtle bar */}
       <div
         className={cn(
           "pointer-events-none absolute left-0 top-0 h-px w-full bg-gradient-to-r",
           t.bar
         )}
       />
-      {/* glow blob */}
       <div
         className={cn(
           "pointer-events-none absolute -right-10 -top-10 h-24 w-24 rounded-full blur-2xl transition group-hover:scale-110",
@@ -362,10 +360,7 @@ function ActionBadge({ action }: { action: string }) {
             ? "amber"
             : "indigo";
 
-  const map: Record<
-    string,
-    { cls: string; icon: React.ReactNode; label: string }
-  > = {
+  const map: Record<string, { cls: string; icon: React.ReactNode; label: string }> = {
     emerald: {
       cls: "bg-emerald-50 text-emerald-700 border-emerald-200/70",
       icon: <CheckCircle2 className="h-3.5 w-3.5" />,
@@ -410,14 +405,7 @@ function ActionBadge({ action }: { action: string }) {
 }
 
 function SkeletonLine({ w }: { w: string }) {
-  return (
-    <div
-      className={cn(
-        "h-4 rounded-md bg-slate-100 animate-pulse",
-        w || "w-full"
-      )}
-    />
-  );
+  return <div className={cn("h-4 rounded-md bg-slate-100 animate-pulse", w || "w-full")} />;
 }
 
 export default function AdminDashboardPage() {
@@ -435,9 +423,7 @@ export default function AdminDashboardPage() {
       const res = await fetch("/api/admin/kpi", { cache: "no-store" });
       if (!res.ok) {
         const text = await res.text().catch(() => "");
-        setErr(
-          `Gagal load KPI. Pastikan login sebagai SUPERADMIN. (${res.status}) ${text}`
-        );
+        setErr(`Gagal load KPI. Pastikan login sebagai SUPERADMIN. (${res.status}) ${text}`);
         return;
       }
       const json = (await res.json()) as KpiResponse;
@@ -498,12 +484,7 @@ export default function AdminDashboardPage() {
   );
 
   return (
-    <AdminShell
-      title="Admin Dashboard"
-      subtitle="Ringkasan KPI & audit log terbaru"
-      right={right}
-    >
-      {/* page backdrop (subtle) */}
+    <AdminShell title="Admin Dashboard" subtitle="Ringkasan KPI & audit log terbaru" right={right}>
       <div className="relative">
         <div className="pointer-events-none absolute -inset-x-6 -top-6 h-40 rounded-3xl bg-gradient-to-r from-indigo-500/10 via-sky-500/10 to-emerald-500/10 blur-2xl" />
       </div>
@@ -518,10 +499,7 @@ export default function AdminDashboardPage() {
       )}
 
       {/* KPI */}
-      <SectionHeader
-        title="KPI"
-        subtitle="Ringkasan request (all / hari ini / bulan ini)"
-      />
+      <SectionHeader title="KPI" subtitle="Ringkasan request (all / hari ini / bulan ini)" />
 
       <div className="mt-3 grid gap-4 md:grid-cols-3">
         <StatCard
@@ -571,10 +549,7 @@ export default function AdminDashboardPage() {
 
       {/* Quick Actions */}
       <div className="mt-8">
-        <SectionHeader
-          title="Quick Actions"
-          subtitle="Akses cepat menu admin"
-        />
+        <SectionHeader title="Quick Actions" subtitle="Akses cepat menu admin" />
 
         <div className="mt-3 grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           <QuickActionCard
@@ -615,6 +590,20 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
+      {/* Latest News */}
+      <div className="mt-8">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-base font-semibold text-slate-900">
+            Latest News
+          </h2>
+        </div>
+
+        <div className="max-w-2xl">
+          <LatestNewsCard />
+        </div>
+      </div>
+
+
       {/* Audit Log */}
       <div className="mt-8">
         <SectionHeader
@@ -645,7 +634,6 @@ export default function AdminDashboardPage() {
               </thead>
 
               <tbody>
-                {/* Loading skeleton */}
                 {loading && logs.length === 0 && (
                   <>
                     {Array.from({ length: 6 }).map((_, i) => (
@@ -672,26 +660,16 @@ export default function AdminDashboardPage() {
 
                 {!loading &&
                   logs.map((a) => (
-                    <tr
-                      key={a.id}
-                      className="border-t border-slate-200 hover:bg-slate-50/70"
-                    >
-                      <td className="p-3 whitespace-nowrap text-slate-900">
-                        {fmtDateTime(a.createdAt)}
-                      </td>
+                    <tr key={a.id} className="border-t border-slate-200 hover:bg-slate-50/70">
+                      <td className="p-3 whitespace-nowrap text-slate-900">{fmtDateTime(a.createdAt)}</td>
                       <td className="p-3">
                         <ActionBadge action={a.action} />
                       </td>
                       <td className="p-3 text-slate-950">{a.entity}</td>
-                      <td
-                        className="p-3 font-mono text-slate-900"
-                        title={a.entityId ?? ""}
-                      >
+                      <td className="p-3 font-mono text-slate-900" title={a.entityId ?? ""}>
                         {a.entityId ? monoCompactId(a.entityId) : "-"}
                       </td>
-                      <td className="p-3 text-slate-900">
-                        {a.actorEmail ?? "-"}
-                      </td>
+                      <td className="p-3 text-slate-900">{a.actorEmail ?? "-"}</td>
                     </tr>
                   ))}
 
@@ -707,9 +685,7 @@ export default function AdminDashboardPage() {
           </div>
 
           <div className="flex items-center justify-between gap-3 border-t border-slate-200 bg-white px-4 py-3">
-            <div className="text-xs text-slate-500">
-              Menampilkan 12 log terbaru.
-            </div>
+            <div className="text-xs text-slate-500">Menampilkan 12 log terbaru.</div>
             <div className="hidden sm:flex items-center gap-2 text-xs text-slate-600">
               <div className="h-2 w-2 rounded-full bg-indigo-500" />
               Tips: klik “Lihat semua” untuk filter & pencarian

@@ -1,4 +1,3 @@
-// lib/admin.ts
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { NextResponse } from "next/server";
@@ -13,7 +12,10 @@ export type Role =
   | "GUEST";
 
 function forbidden(extra?: unknown) {
-  return NextResponse.json({ error: "Forbidden", ...((extra as any) ?? {}) }, { status: 403 });
+  return NextResponse.json(
+    { error: "Forbidden", ...((extra as any) ?? {}) },
+    { status: 403 }
+  );
 }
 
 export async function requireSuperadmin() {
@@ -26,7 +28,6 @@ export async function requireSuperadmin() {
   return { ok: true as const, session, res: null };
 }
 
-/** ✅ NEW: boleh SUPERADMIN atau ADMIN */
 export async function requireAdmin() {
   const session = await getServerSession(authOptions);
   const role = (session?.user?.role ?? "GUEST") as Role;

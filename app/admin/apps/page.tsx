@@ -23,18 +23,18 @@ type AppItem = {
   id: string;
   name: string;
   category: Category;
-  username: string;
-  password: string;
-  url: string | null; // ✅ biar aman kalau DB ngirim null
+  username: string | null; // ✅ optional
+  password: string | null; // ✅ optional
+  url: string | null;      // ✅ kalau DB ngirim null
   description?: string | null;
 };
 
 type AppForm = {
   name: string;
   category: Category;
-  username: string;
-  password: string;
-  url: string; // ✅ wajib string untuk input
+  username: string;  // input selalu string
+  password: string;  // input selalu string
+  url: string;       // ✅ wajib string untuk input
   description: string;
 };
 
@@ -51,11 +51,18 @@ function parseCategory(v: string): Category {
   return v === "REGIONAL" ? "REGIONAL" : "HO";
 }
 
+function toOptional(v: string): string | undefined {
+  const t = (v ?? "").trim();
+  return t ? t : undefined;
+}
+
 async function readErrorText(res: Response) {
   try {
     const ct = res.headers.get("content-type") || "";
     if (ct.includes("application/json")) {
       const j = await res.json();
+      // kalau API kamu punya {message: "..."} biar lebih enak
+      if (j && typeof j.message === "string") return j.message;
       return JSON.stringify(j);
     }
     return await res.text();
@@ -134,7 +141,7 @@ export default function AdminAppsPage() {
       category: a.category ?? "HO",
       username: a.username ?? "",
       password: a.password ?? "",
-      url: a.url ?? "", // ✅ anti-null
+      url: a.url ?? "",
       description: a.description ?? "",
     });
   };
@@ -145,18 +152,32 @@ export default function AdminAppsPage() {
     setErr(null);
   };
 
+  const validateRequired = () => {
+    if (!form.name.trim() || !form.url.trim()) {
+      setErr("Nama dan URL wajib diisi.");
+      return false;
+    }
+    return true;
+  };
+
   const create = async () => {
     setErr(null);
+    if (!validateRequired()) return;
 
-    if (!form.name.trim() || !form.username.trim() || !form.password.trim() || !form.url.trim()) {
-      setErr("Nama, Username, Password, dan URL wajib diisi.");
-      return;
-    }
+    // ✅ kirim username/password optional
+    const payload = {
+      name: form.name.trim(),
+      category: form.category,
+      url: form.url.trim(),
+      username: toOptional(form.username),
+      password: toOptional(form.password),
+      description: toOptional(form.description),
+    };
 
     const res = await fetch("/api/admin/apps", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify(payload),
     });
 
     if (!res.ok) {
@@ -172,17 +193,22 @@ export default function AdminAppsPage() {
   const update = async () => {
     if (!selected) return;
     setErr(null);
+    if (!validateRequired()) return;
 
-    if (!form.name.trim() || !form.username.trim() || !form.password.trim() || !form.url.trim()) {
-      setErr("Nama, Username, Password, dan URL wajib diisi.");
-      return;
-    }
+    const payload = {
+      name: form.name.trim(),
+      category: form.category,
+      url: form.url.trim(),
+      username: toOptional(form.username),
+      password: toOptional(form.password),
+      description: toOptional(form.description),
+    };
 
     const id = encodeURIComponent(selected.id);
     const res = await fetch(`/api/admin/apps?id=${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify(payload),
     });
 
     if (!res.ok) {
@@ -234,8 +260,8 @@ export default function AdminAppsPage() {
             <Search className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <Input
               className="pl-9 rounded-xl"
-              placeholder="Cari (name / username / url)…"
-              value={q ?? ""} // ✅ anti-null
+              placeholder="Cari (name / url / deskripsi)…"
+              value={q ?? ""}
               onChange={(e) => {
                 setQ(e.target.value);
                 setPage(1);
@@ -360,8 +386,8 @@ export default function AdminAppsPage() {
 
           <div className="grid md:grid-cols-2 gap-2">
             <Input
-              placeholder="Nama App"
-              value={form.name ?? ""} // ✅ anti-null
+              placeholder="Nama App *"
+              value={form.name ?? ""}
               onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
             />
 
@@ -376,14 +402,14 @@ export default function AdminAppsPage() {
           </div>
 
           <Input
-            placeholder="Username"
-            value={form.username ?? ""} // ✅ anti-null
+            placeholder="Username (opsional)"
+            value={form.username ?? ""}
             onChange={(e) => setForm((p) => ({ ...p, username: e.target.value }))}
           />
 
           <Input
-            placeholder="Password"
-            value={form.password ?? ""} // ✅ anti-null
+            placeholder="Password (opsional)"
+            value={form.password ?? ""}
             onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
           />
 
@@ -391,15 +417,15 @@ export default function AdminAppsPage() {
             <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input
               className="pl-9"
-              placeholder="https://app.domain.com"
-              value={form.url ?? ""} // ✅ anti-null
+              placeholder="https://app.domain.com *"
+              value={form.url ?? ""}
               onChange={(e) => setForm((p) => ({ ...p, url: e.target.value }))}
             />
           </div>
 
           <Textarea
-            placeholder="Deskripsi"
-            value={form.description ?? ""} // ✅ anti-null
+            placeholder="Deskripsi (opsional)"
+            value={form.description ?? ""}
             onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
           />
 
