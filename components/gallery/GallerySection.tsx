@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { ChevronRight, ChevronLeft, Images, X } from 'lucide-react';
@@ -14,14 +14,14 @@ function getCategory(g: GalleryItem) {
 
 export default function KegiatanSection() {
   const [activeCat, setActiveCat] = useState<string | null>(null);
-  const [openId, setOpenId] = useState<string | null>(null);
+
+  // ✅ ganti dari openId → openIndex (biar bisa slide kiri kanan)
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   /* daftar kategori unik */
   const kegiatanList = useMemo(() => {
     const set = new Set<string>();
-    for (const it of GALLERY_ITEMS) {
-      set.add(getCategory(it));
-    }
+    for (const it of GALLERY_ITEMS) set.add(getCategory(it));
     return Array.from(set);
   }, []);
 
@@ -31,10 +31,54 @@ export default function KegiatanSection() {
     [activeCat]
   );
 
-  const selected = useMemo(
-    () => GALLERY_ITEMS.find((g) => g.id === openId) ?? null,
-    [openId]
-  );
+  const selected = useMemo(() => {
+    if (openIndex == null) return null;
+    return filtered[openIndex] ?? null;
+  }, [openIndex, filtered]);
+
+  const hasModal = openIndex != null && filtered.length > 0;
+
+  const closeModal = useCallback(() => setOpenIndex(null), []);
+
+  const prev = useCallback(() => {
+    if (filtered.length === 0) return;
+    setOpenIndex((i) => {
+      if (i == null) return 0;
+      return (i - 1 + filtered.length) % filtered.length;
+    });
+  }, [filtered.length]);
+
+  const next = useCallback(() => {
+    if (filtered.length === 0) return;
+    setOpenIndex((i) => {
+      if (i == null) return 0;
+      return (i + 1) % filtered.length;
+    });
+  }, [filtered.length]);
+
+  // ✅ keyboard control + ESC
+  useEffect(() => {
+    if (!hasModal) return;
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeModal();
+      if (e.key === 'ArrowLeft') prev();
+      if (e.key === 'ArrowRight') next();
+    };
+
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [hasModal, closeModal, prev, next]);
+
+  // ✅ lock scroll body saat modal buka
+  useEffect(() => {
+    if (!hasModal) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [hasModal]);
 
   return (
     <>
@@ -43,7 +87,10 @@ export default function KegiatanSection() {
         <div className="flex items-center gap-2 mb-3">
           {activeCat ? (
             <button
-              onClick={() => setActiveCat(null)}
+              onClick={() => {
+                setActiveCat(null);
+                setOpenIndex(null);
+              }}
               className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white/90 dark:bg-slate-900/70 hover:bg-white text-[13px]"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -100,11 +147,11 @@ export default function KegiatanSection() {
 
             {filtered.length > 0 && (
               <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                {filtered.map((item) => (
+                {filtered.map((item, idx) => (
                   <PhotoTile
                     key={item.id}
                     item={item}
-                    onOpen={() => setOpenId(item.id)}
+                    onOpen={() => setOpenIndex(idx)} // ✅ buka berdasarkan index
                   />
                 ))}
               </div>
@@ -113,8 +160,8 @@ export default function KegiatanSection() {
         )}
       </section>
 
-      {/* Modal */}
-      {selected && (
+      {/* ✅ Modal Slider */}
+      {selected && openIndex != null && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -122,33 +169,77 @@ export default function KegiatanSection() {
         >
           <div
             className="absolute inset-0 bg-black/55 backdrop-blur-sm"
-            onClick={() => setOpenId(null)}
+            onClick={closeModal}
           />
+
           <motion.div
             initial={{ y: 18, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className="relative z-10 w-full max-w-4xl overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl"
+            className="relative z-10 w-full max-w-5xl overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
           >
-            <div className="relative aspect-16/9 w-full">
+            {/* IMAGE AREA */}
+            <div className="relative w-full aspect-[16/9] bg-black">
               {selected.image ? (
                 <Image
                   src={selected.image}
                   alt={selected.title || getCategory(selected)}
                   fill
-                  className="object-cover"
+                  className="object-contain" // ✅ biar kayak viewer (lebih enak buat slide)
+                  priority
+                  sizes="100vw"
                 />
               ) : (
                 <div className="absolute inset-0 bg-slate-300 dark:bg-slate-700" />
               )}
+
+              {/* ✅ Close */}
+              <button
+                onClick={closeModal}
+                className="absolute top-3 right-3 z-10 p-2 rounded-lg bg-white/90 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700"
+                aria-label="Tutup"
+                title="Tutup"
+                type="button"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              {/* ✅ Panah kiri/kanan model bulat */}
+              {filtered.length > 1 && (
+                <>
+                  <button
+                    onClick={prev}
+                    type="button"
+                    aria-label="Sebelumnya"
+                    title="Sebelumnya"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 z-10
+                               h-12 w-12 rounded-full bg-white/90 text-slate-900 shadow-lg
+                               hover:bg-white"
+                  >
+                    <ChevronLeft className="w-6 h-6 mx-auto" />
+                  </button>
+
+                  <button
+                    onClick={next}
+                    type="button"
+                    aria-label="Berikutnya"
+                    title="Berikutnya"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 z-10
+                               h-12 w-12 rounded-full bg-white/90 text-slate-900 shadow-lg
+                               hover:bg-white"
+                  >
+                    <ChevronRight className="w-6 h-6 mx-auto" />
+                  </button>
+                </>
+              )}
+
+              {/* ✅ counter */}
+              <div className="absolute left-4 bottom-4 z-10 rounded-full bg-black/55 text-white text-xs px-3 py-1">
+                {openIndex + 1} / {filtered.length}
+              </div>
             </div>
 
-            <button
-              onClick={() => setOpenId(null)}
-              className="absolute top-3 right-3 z-10 p-2 rounded-lg bg-white/90 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700"
-            >
-              <X className="w-4 h-4" />
-            </button>
-
+            {/* INFO */}
             <div className="p-4">
               <h4 className="text-base font-semibold">
                 {selected.title || getCategory(selected)}
@@ -160,12 +251,21 @@ export default function KegiatanSection() {
                 </p>
               )}
 
-              <button
-                onClick={() => setOpenId(null)}
-                className="mt-3 inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-[13px] bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700"
-              >
-                Kembali
-              </button>
+              <div className="mt-3 flex items-center justify-between gap-2">
+                <button
+                  onClick={closeModal}
+                  className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-[13px]
+                             bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700"
+                >
+                  Kembali
+                </button>
+
+                {filtered.length > 1 && (
+                  <div className="text-xs text-slate-500 dark:text-slate-400">
+                    Tips: pakai keyboard <b>←</b> <b>→</b>
+                  </div>
+                )}
+              </div>
             </div>
           </motion.div>
         </motion.div>
@@ -180,6 +280,7 @@ function PhotoTile({ item, onOpen }: { item: GalleryItem; onOpen: () => void }) 
     <button
       onClick={onOpen}
       className="group relative block w-full overflow-hidden rounded-xl"
+      type="button"
     >
       <div className="relative aspect-[16/10] w-full">
         {item.image ? (
@@ -188,6 +289,7 @@ function PhotoTile({ item, onOpen }: { item: GalleryItem; onOpen: () => void }) 
             alt={item.title || getCategory(item)}
             fill
             className="object-cover transition duration-300 group-hover:scale-[1.04]"
+            sizes="(max-width: 1024px) 50vw, 25vw"
           />
         ) : (
           <div className="absolute inset-0 bg-slate-200 dark:bg-slate-800" />

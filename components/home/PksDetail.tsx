@@ -58,10 +58,12 @@ export default function PksDetailView({
   const galeri: string[] = Array.isArray((detail as any).galeri)
     ? ((detail as any).galeri as string[])
     : Array.isArray((detail as any).images)
-      ? (detail as any).images.slice(2)
-      : [];
+    ? (detail as any).images.slice(2)
+    : [];
 
-  // ===== Lightbox images list =====
+  const hasCert = galeri.length > 0;
+
+  // ===== Lightbox images list (foto, struktur, lalu galeri) =====
   const allImages = useMemo(
     () => [fotoPksSrc, fotoStrukturSrc, ...galeri],
     [fotoPksSrc, fotoStrukturSrc, galeri]
@@ -107,10 +109,11 @@ export default function PksDetailView({
   const deckViewerSrc = useMemo(() => {
     if (!deck?.fileUrl) return "";
     if (deckKind === "pdf") return deck.fileUrl;
-    if (deckKind === "ppt")
+    if (deckKind === "ppt") {
       return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(
         deck.fileUrl
       )}`;
+    }
     return deck.fileUrl;
   }, [deck, deckKind]);
 
@@ -138,11 +141,14 @@ export default function PksDetailView({
     setActiveIdx(idx);
     setLightboxOpen(true);
   }, []);
+
   const closeLightbox = useCallback(() => setLightboxOpen(false), []);
+
   const nextLB = useCallback(
     () => setActiveIdx((i) => (i + 1) % allImages.length),
     [allImages.length]
   );
+
   const prevLB = useCallback(
     () => setActiveIdx((i) => (i - 1 + allImages.length) % allImages.length),
     [allImages.length]
@@ -163,21 +169,22 @@ export default function PksDetailView({
     return () => window.removeEventListener("keydown", onKey);
   }, [deckOpen, lightboxOpen, closeLightbox, nextLB, prevLB]);
 
-  // ===== Slider Sertifikasi =====
-  const [slideIdx, setSlideIdx] = useState(0);
-  const hasCert = galeri.length > 0;
-  const certActiveSrc = hasCert ? galeri[slideIdx % galeri.length] : undefined;
+  // ===== Sertifikasi Slider (scroll) =====
+  const certScrollRef = useRef<HTMLDivElement | null>(null);
 
-  const nextSlide = () =>
-    setSlideIdx((i) => (galeri.length ? (i + 1) % galeri.length : 0));
-  const prevSlide = () =>
-    setSlideIdx((i) =>
-      galeri.length ? (i - 1 + galeri.length) % galeri.length : 0
-    );
+  const scrollCert = useCallback((dir: "left" | "right") => {
+    const el = certScrollRef.current;
+    if (!el) return;
+    const amount = 260;
+    el.scrollBy({ left: dir === "left" ? -amount : amount, behavior: "smooth" });
+  }, []);
 
-  // ✅ FIX: Tinggi kartu dipaksa sama → 3 kartu sejajar rapi
+  // ✅ FIX: tinggi kartu dipaksa sama → 3/4 kartu sejajar rapi
   const IMAGE_WRAPPER =
     "group relative w-full h-[120px] sm:h-[130px] lg:h-[135px] xl:h-[140px] overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-900";
+
+  const CAPTION =
+    "absolute bottom-2 left-2 text-[11px] px-2 py-1 rounded-md bg-black/40 text-white backdrop-blur-sm border border-white/20";
 
   return (
     <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/70 p-5">
@@ -191,7 +198,6 @@ export default function PksDetailView({
 
       {/* ====== KARTU ATAS (3 / 4 otomatis) ====== */}
       <div className="mt-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-2 sm:p-3">
-        {/* ✅ items-stretch biar sejajar */}
         <div className={`grid ${gridCols} gap-3 sm:gap-4 items-stretch`}>
           {/* Foto */}
           <button
@@ -206,9 +212,7 @@ export default function PksDetailView({
               className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
               sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 25vw"
             />
-            <figcaption className="absolute bottom-2 left-2 text-[11px] px-2 py-1 rounded-md bg-black/40 text-white backdrop-blur-sm border border-white/20">
-              Foto PKS
-            </figcaption>
+            <span className={CAPTION}>Foto PKS</span>
           </button>
 
           {/* Struktur */}
@@ -224,55 +228,66 @@ export default function PksDetailView({
               className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
               sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 25vw"
             />
-            <figcaption className="absolute bottom-2 left-2 text-[11px] px-2 py-1 rounded-md bg-black/40 text-white backdrop-blur-sm border border-white/20">
-              Struktur PKS
-            </figcaption>
+            <span className={CAPTION}>Struktur PKS</span>
           </button>
 
-          {/* Sertifikasi */}
+          {/* Sertifikasi: muncul hanya kalau tidak di-hide */}
           {!hideSertifikasi && (
-            <div
-              className={`${IMAGE_WRAPPER} ring-1 ring-slate-200/70 dark:ring-slate-800`}
-            >
+            <div className={`${IMAGE_WRAPPER} ring-1 ring-slate-200/70 dark:ring-slate-800`}>
               {hasCert ? (
-                <Image
-                  src={certActiveSrc as string}
-                  alt={`Sertifikasi ${detail.nama}`}
-                  fill
-                  className="object-contain p-1 transition-transform duration-500 ease-out group-hover:scale-[1.01]"
-                  sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 25vw"
-                  onClick={() => openLightbox(2 + (slideIdx % galeri.length))}
-                />
+                <>
+                  {/* Scroll slider */}
+                  <div
+                    ref={certScrollRef}
+                    className="absolute inset-0 flex gap-2 overflow-x-auto scroll-smooth snap-x snap-mandatory p-2"
+                  >
+                    {galeri.map((src, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => openLightbox(2 + i)}
+                        className="relative h-full min-w-[180px] snap-center overflow-hidden rounded-lg bg-white/70"
+                      >
+                        <Image
+                          src={src}
+                          alt={`Sertifikasi ${detail.nama} ${i + 1}`}
+                          fill
+                          className="object-contain p-1"
+                          sizes="180px"
+                        />
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Panah kiri/kanan (tidak perlu close dulu) */}
+                  {galeri.length > 1 && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => scrollCert("left")}
+                        className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/30 text-white hover:bg-black/45"
+                        aria-label="Sertifikasi sebelumnya"
+                      >
+                        <ChevronLeft className="w-5 h-5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => scrollCert("right")}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/30 text-white hover:bg-black/45"
+                        aria-label="Sertifikasi berikutnya"
+                      >
+                        <ChevronRight className="w-5 h-5" />
+                      </button>
+                    </>
+                  )}
+                </>
               ) : (
                 <div className="absolute inset-0 grid place-items-center text-sm text-slate-500">
                   Belum ada sertifikasi.
                 </div>
               )}
 
-              <figcaption className="absolute bottom-2 left-2 text-[11px] px-2 py-1 rounded-md bg-black/40 text-white backdrop-blur-sm border border-white/20">
-                Sertifikasi
-              </figcaption>
-
-              {galeri.length > 1 && (
-                <>
-                  <button
-                    onClick={prevSlide}
-                    type="button"
-                    className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/30 text-white hover:bg-black/40"
-                    aria-label="Sebelumnya"
-                  >
-                    <ChevronLeft className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={nextSlide}
-                    type="button"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/30 text-white hover:bg-black/40"
-                    aria-label="Berikutnya"
-                  >
-                    <ChevronRight className="w-5 h-5" />
-                  </button>
-                </>
-              )}
+              <span className={CAPTION}>Sertifikasi</span>
             </div>
           )}
 
@@ -313,9 +328,7 @@ export default function PksDetailView({
               </div>
             )}
 
-            <figcaption className="absolute bottom-2 left-2 text-[11px] px-2 py-1 rounded-md bg-black/40 text-white backdrop-blur-sm border border-white/20">
-              Profil
-            </figcaption>
+            <span className={CAPTION}>Profil</span>
           </button>
         </div>
       </div>

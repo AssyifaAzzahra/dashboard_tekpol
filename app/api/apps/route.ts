@@ -12,9 +12,9 @@ export async function GET() {
       id: true,
       name: true,
       category: true,
-      description: true,
       url: true,
-      // ⛔ JANGAN expose username/password
+      description: true,
+      logoUrl: true, // ✅ PENTING
     },
   });
 

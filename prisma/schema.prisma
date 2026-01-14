@@ -22,14 +22,14 @@ model User {
 }
 
 model App {
-  id          String    @id @default(cuid())
-  name        String    @unique
+  id          String   @id @default(cuid())
+  name        String   @unique
   category    Category
-  url         String
-  username    String?
-  password    String?
+  url         String?
+  username    String?   // ✅ opsional
+  password    String?   // ✅ opsional
   description String?
-
+  logoUrl     String?
   requests    Request[]
 
   createdAt   DateTime  @default(now())

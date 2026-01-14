@@ -49,7 +49,7 @@ const IMAGE_MAP: Record<string, ExtraGambar> = {
   ],
 },
   'pks-sei-pagar': {
-    fotoPks: '/images/pks.jpg',
+    fotoPks: '/images/pks/spa.jpg',
     fotoStruktur: '/images/pks/strukturSeiPagar.png',
     sejarahSingkat: `Profil Kebun & PKS Sei Pagar merupakan salah satu unit usaha dari PT Perkebunan Nusantara IV Regional II, yang berada di bawah Distrik Timur.Unit ini berlokasi di Desa Hangtuah, Kecamatan Perhentian Raja, Kabupaten Kampar, Provinsi Riau, sekitar 35 kilometer dari Kota Pekanbaru.Kebun Sei Pagar memiliki luas area 2.691,57 hektare, sebagaimana tergambar dalam peta blok kebun yang menampilkan pembagian area tanam dan batas-batas administratifnya. 
   Sementara itu, Pabrik Kelapa Sawit (PKS) Sei Pagar berdiri sejak 10 Oktober 1995 dengan kapasitas olah 30 ton TBS per jam. 
@@ -68,7 +68,7 @@ const IMAGE_MAP: Record<string, ExtraGambar> = {
   'pks-sei-buatan': {
     fotoPks: '/images/pks.jpg'.replace(' ', ''),
     fotoStruktur: '/images/pks/strukturSeiBuatan.png',
-    sejarahSingkat: 'Melayani kebun Lubuk Dalam & sekitar; fokus kualitas kernel.',
+    sejarahSingkat: 'PKS Sei Buatan adalah unit pengolahan kelapa sawit milik PT Perkebunan Nusantara V (PTPN V) yang berlokasi strategis di wilayah Siak, Riau, dengan peran utama memproses Tandan Buah Segar (TBS) dari berbagai perkebunan sekitar seperti Sei Buatan, Air Molek, dan Lubuk Dalam. Sebagai bagian integral dari jaringan operasional PTPN V, pabrik ini memfokuskan kegiatannya pada produksi Crude Palm Oil (CPO) dan Palm Kernel (inti sawit) yang memenuhi standar kualitas baku mutu nasional maupun internasional. Melalui koordinasi pasokan bahan baku yang intensif dari unit-unit kebun perusahaan, PKS Sei Buatan menjaga konsistensi operasional guna mendukung target produksi dan standar tinggi yang ditetapkan oleh Holding Perkebunan Nusantara.',
     galeri: ['/images/pks/sertifikasiSeiBuatan.png'],
   },
   'pks-lubuk-dalam': {

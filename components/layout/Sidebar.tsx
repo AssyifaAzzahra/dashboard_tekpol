@@ -1,7 +1,7 @@
 // components/layout/Sidebar.tsx
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Home,
   Factory,
@@ -33,9 +33,17 @@ export default function Sidebar({
   onSelect: (k: PathKey) => void;
   onGoHomeView?: (v: HomeView) => void;
 }) {
-  const [openPengolahan, setOpenPengolahan] = useState(true);
+  // ✅ FIX: default submenu TERTUTUP
+  const [openPengolahan, setOpenPengolahan] = useState(false);
   const [openInvestasi, setOpenInvestasi] = useState(false);
   const [openTeknik, setOpenTeknik] = useState(false);
+
+  // ✅ OPTIONAL: kalau sedang berada di submenu Pengolahan, auto-open
+  // Kalau kamu MAU tetap selalu tertutup (walau sedang di halaman tukang olah), HAPUS useEffect ini.
+  useEffect(() => {
+    const isInsidePengolahan = activeKey === ("pengolahan/tukangolah" as PathKey);
+    if (isInsidePengolahan) setOpenPengolahan(true);
+  }, [activeKey]);
 
   const router = useRouter();
   const { data } = useSession();
@@ -44,7 +52,6 @@ export default function Sidebar({
   const isLoggedIn = Boolean(data?.user?.id);
 
   const canSeeApproval = role === "KABAG" || role === "KASUBAG";
-
   const canSeeAdmin = role === "SUPERADMIN";
 
   const goHomeView = (view: HomeView) => {
@@ -91,7 +98,10 @@ export default function Sidebar({
           <button
             type="button"
             onClick={() => setOpenPengolahan((v) => !v)}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+            className={cls(
+              "w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition",
+              openPengolahan && "bg-slate-50/70 dark:bg-slate-800/40"
+            )}
           >
             {openPengolahan ? (
               <ChevronDown className="w-4 h-4" />
@@ -115,7 +125,7 @@ export default function Sidebar({
                 className={cls(
                   "w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition text-left",
                   activeKey === ("pengolahan/tukangolah" as PathKey) &&
-                  "bg-slate-100 dark:bg-slate-800"
+                    "bg-slate-100 dark:bg-slate-800"
                 )}
               >
                 <FileText className="w-4 h-4" />
@@ -130,7 +140,10 @@ export default function Sidebar({
           <button
             type="button"
             onClick={() => setOpenInvestasi((v) => !v)}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+            className={cls(
+              "w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition",
+              openInvestasi && "bg-slate-50/70 dark:bg-slate-800/40"
+            )}
           >
             {openInvestasi ? (
               <ChevronDown className="w-4 h-4" />
@@ -154,7 +167,7 @@ export default function Sidebar({
                 className={cls(
                   "w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition text-left",
                   activeKey === ("investasi/sub-instalasi-pks" as PathKey) &&
-                  "bg-slate-100 dark:bg-slate-800"
+                    "bg-slate-100 dark:bg-slate-800"
                 )}
               >
                 <FileText className="w-4 h-4" />
@@ -169,7 +182,10 @@ export default function Sidebar({
           <button
             type="button"
             onClick={() => setOpenTeknik((v) => !v)}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+            className={cls(
+              "w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition",
+              openTeknik && "bg-slate-50/70 dark:bg-slate-800/40"
+            )}
           >
             {openTeknik ? (
               <ChevronDown className="w-4 h-4" />
@@ -193,7 +209,7 @@ export default function Sidebar({
                 className={cls(
                   "w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition text-left",
                   activeKey === ("teknik/sub" as PathKey) &&
-                  "bg-slate-100 dark:bg-slate-800"
+                    "bg-slate-100 dark:bg-slate-800"
                 )}
               >
                 <FileText className="w-4 h-4" />
@@ -213,7 +229,7 @@ export default function Sidebar({
             className={cls(
               "w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition",
               activeKey === ("tekpol-apps" as PathKey) &&
-              "bg-slate-100 dark:bg-slate-800"
+                "bg-slate-100 dark:bg-slate-800"
             )}
           >
             <AppWindow className="w-4 h-4" />
@@ -223,7 +239,7 @@ export default function Sidebar({
           </button>
         </div>
 
-        {/* Approval (khusus approver) */}
+        {/* Approval */}
         {canSeeApproval && (
           <div className="mt-2">
             <button
@@ -232,7 +248,7 @@ export default function Sidebar({
               className={cls(
                 "w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition",
                 activeKey === ("approval" as PathKey) &&
-                "bg-slate-100 dark:bg-slate-800"
+                  "bg-slate-100 dark:bg-slate-800"
               )}
             >
               <ShieldCheck className="w-4 h-4" />
@@ -243,6 +259,7 @@ export default function Sidebar({
           </div>
         )}
 
+        {/* Admin */}
         {canSeeAdmin && (
           <div className="mt-2">
             <button

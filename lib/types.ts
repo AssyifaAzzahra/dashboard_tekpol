@@ -6,6 +6,7 @@ export type LinkItem = {
   desc?: string;
   tag?: string;
   children?: LinkItem[];
+  logoUrl?: string; // ✅ WAJIB
 };
 
 export type ContentBucket = {
@@ -85,6 +86,12 @@ export type App = {
   username: string;
   password: string;
   description?: string | null;
+
+  // ✅ TAMBAH: biar selaras dengan DB & UI Tekpol Apps
+  url?: string | null;
+
+  // ✅ TAMBAH: url logo (contoh: /uploads/apps/xxx.png atau URL cloud)
+  logoUrl?: string | null;
 };
 
 export type User = {
