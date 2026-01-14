@@ -75,7 +75,7 @@ export default function Page() {
             <KegiatanSection />
           ) : activeKey === "tekpol-apps" ? (
             // ✅ INI YANG BIKIN APP ADMIN MUNCUL DI DASHBOARD
-            <TekpolAppsSection search={search} />
+            <TekpolAppsSection/>
           ) : (
             <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/70 p-5">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
