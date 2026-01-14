@@ -1,4 +1,3 @@
-// components/home/PksDetail.tsx
 "use client";
 
 import Image from "next/image";
@@ -46,13 +45,12 @@ export default function PksDetailView({
     (detail as any).images?.[1] ??
     "/images/strukturlda.png";
 
-  // ✅ hide sertifikasi per PKS
   const hideSertifikasi = Boolean((detail as any).hideSertifikasi);
 
   // ✅ grid otomatis 3 / 4 kartu
   const gridCols = hideSertifikasi
-    ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"
-    : "grid-cols-1 md:grid-cols-2 xl:grid-cols-4";
+    ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+    : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4";
 
   // ===== Galeri sertifikasi =====
   const galeri: string[] = Array.isArray((detail as any).galeri)
@@ -63,7 +61,7 @@ export default function PksDetailView({
 
   const hasCert = galeri.length > 0;
 
-  // ===== Lightbox images list (foto, struktur, lalu galeri) =====
+  // ===== Lightbox images list =====
   const allImages = useMemo(
     () => [fotoPksSrc, fotoStrukturSrc, ...galeri],
     [fotoPksSrc, fotoStrukturSrc, galeri]
@@ -117,17 +115,14 @@ export default function PksDetailView({
     return deck.fileUrl;
   }, [deck, deckKind]);
 
-  // ✅ tombol fullscreen untuk viewer
+  // ✅ fullscreen
   const deckWrapRef = useRef<HTMLDivElement | null>(null);
   const requestFs = useCallback(async () => {
     const el = deckWrapRef.current;
     if (!el) return;
     try {
-      if (document.fullscreenElement) {
-        await document.exitFullscreen();
-      } else {
-        await el.requestFullscreen();
-      }
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await el.requestFullscreen();
     } catch {
       // ignore
     }
@@ -169,19 +164,23 @@ export default function PksDetailView({
     return () => window.removeEventListener("keydown", onKey);
   }, [deckOpen, lightboxOpen, closeLightbox, nextLB, prevLB]);
 
-  // ===== Sertifikasi Slider (scroll) =====
+  // ===== Sertifikasi slider =====
   const certScrollRef = useRef<HTMLDivElement | null>(null);
 
   const scrollCert = useCallback((dir: "left" | "right") => {
     const el = certScrollRef.current;
     if (!el) return;
-    const amount = 260;
+    const amount = 220; // ✅ lebih kecil
     el.scrollBy({ left: dir === "left" ? -amount : amount, behavior: "smooth" });
   }, []);
 
-  // ✅ FIX: tinggi kartu dipaksa sama → 3/4 kartu sejajar rapi
+  /**
+   * ✅ Ukuran kartu diperkecil & responsif:
+   * - HP: lebih pendek
+   * - Desktop: tetap nyaman
+   */
   const IMAGE_WRAPPER =
-    "group relative w-full h-[120px] sm:h-[130px] lg:h-[135px] xl:h-[140px] overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-900";
+    "group relative w-full h-[92px] sm:h-[110px] lg:h-[120px] overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-900";
 
   const CAPTION =
     "absolute bottom-2 left-2 text-[11px] px-2 py-1 rounded-md bg-black/40 text-white backdrop-blur-sm border border-white/20";
@@ -198,7 +197,7 @@ export default function PksDetailView({
 
       {/* ====== KARTU ATAS (3 / 4 otomatis) ====== */}
       <div className="mt-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 p-2 sm:p-3">
-        <div className={`grid ${gridCols} gap-3 sm:gap-4 items-stretch`}>
+        <div className={`grid ${gridCols} gap-2 sm:gap-3 items-stretch`}>
           {/* Foto */}
           <button
             type="button"
@@ -210,7 +209,7 @@ export default function PksDetailView({
               alt={`${detail.nama} - Foto PKS`}
               fill
               className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
-              sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 25vw"
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
             />
             <span className={CAPTION}>Foto PKS</span>
           </button>
@@ -226,17 +225,16 @@ export default function PksDetailView({
               alt={`${detail.nama} - Struktur PKS`}
               fill
               className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
-              sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 25vw"
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
             />
             <span className={CAPTION}>Struktur PKS</span>
           </button>
 
-          {/* Sertifikasi: muncul hanya kalau tidak di-hide */}
+          {/* Sertifikasi */}
           {!hideSertifikasi && (
             <div className={`${IMAGE_WRAPPER} ring-1 ring-slate-200/70 dark:ring-slate-800`}>
               {hasCert ? (
                 <>
-                  {/* Scroll slider */}
                   <div
                     ref={certScrollRef}
                     className="absolute inset-0 flex gap-2 overflow-x-auto scroll-smooth snap-x snap-mandatory p-2"
@@ -246,20 +244,19 @@ export default function PksDetailView({
                         key={i}
                         type="button"
                         onClick={() => openLightbox(2 + i)}
-                        className="relative h-full min-w-[180px] snap-center overflow-hidden rounded-lg bg-white/70"
+                        className="relative h-full min-w-[150px] sm:min-w-[160px] snap-center overflow-hidden rounded-lg bg-white/70"
                       >
                         <Image
                           src={src}
                           alt={`Sertifikasi ${detail.nama} ${i + 1}`}
                           fill
                           className="object-contain p-1"
-                          sizes="180px"
+                          sizes="160px"
                         />
                       </button>
                     ))}
                   </div>
 
-                  {/* Panah kiri/kanan (tidak perlu close dulu) */}
                   {galeri.length > 1 && (
                     <>
                       <button
@@ -306,7 +303,7 @@ export default function PksDetailView({
                   alt={`Cover Profil ${detail.nama}`}
                   fill
                   className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.02]"
-                  sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 25vw"
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
                 <div className="absolute bottom-2 right-2 text-[11px] px-2 py-1 rounded-md bg-white/15 text-white backdrop-blur-sm border border-white/20">
