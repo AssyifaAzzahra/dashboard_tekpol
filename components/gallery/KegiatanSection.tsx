@@ -4,41 +4,74 @@ import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { ChevronRight, ChevronLeft, Images, X } from 'lucide-react';
-import { GALLERY_ITEMS, type GalleryItem } from '@/lib/data/gallery';
 
-/* Ambil kategori dengan fallback */
+type GalleryItem = {
+  id: string;
+  title?: string | null;
+  caption?: string | null;
+  image?: string;
+  category?: string;
+  order?: number;
+  createdAt?: string;
+};
+
+type CategoryPayload = {
+  name: string;
+  items: GalleryItem[];
+};
+
 function getCategory(g: GalleryItem) {
-  const anyG = g as any;
-  return (anyG.category ?? anyG.group ?? anyG.tag ?? 'Umum') as string;
+  return (g.category?.trim() || 'Umum') as string;
 }
 
 export default function KegiatanSection() {
   const [activeCat, setActiveCat] = useState<string | null>(null);
-
-  // ✅ ganti openId -> openIndex (biar bisa next/prev)
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
-  /* daftar kategori unik */
-  const kegiatanList = useMemo(() => {
-    const set = new Set<string>();
-    for (const it of GALLERY_ITEMS) set.add(getCategory(it));
-    return Array.from(set);
+  const [cats, setCats] = useState<CategoryPayload[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+
+  // ✅ ambil kategori + foto dari DB
+  useEffect(() => {
+    let alive = true;
+    async function load() {
+      try {
+        setLoading(true);
+        setErr(null);
+        const res = await fetch('/api/public/gallery-categories', { cache: 'no-store' });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json?.message || 'Gagal memuat galeri');
+        if (!alive) return;
+        setCats(Array.isArray(json) ? json : []);
+      } catch (e: any) {
+        if (!alive) return;
+        setErr(e?.message || 'Error');
+      } finally {
+        if (!alive) return;
+        setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      alive = false;
+    };
   }, []);
 
-  /* foto dalam kategori */
-  const filtered = useMemo(
-    () => (activeCat ? GALLERY_ITEMS.filter((g) => getCategory(g) === activeCat) : []),
-    [activeCat]
-  );
+  const kegiatanList = useMemo(() => cats.map((c) => c.name), [cats]);
 
-  // ✅ foto yang sedang dibuka = filtered[openIndex]
+  const filtered = useMemo(() => {
+    if (!activeCat) return [];
+    const found = cats.find((c) => c.name === activeCat);
+    return found?.items ?? [];
+  }, [activeCat, cats]);
+
   const selected = useMemo(() => {
     if (openIndex === null) return null;
     return filtered[openIndex] ?? null;
   }, [openIndex, filtered]);
 
   const closeModal = useCallback(() => setOpenIndex(null), []);
-
   const hasNav = filtered.length > 1;
 
   const goPrev = useCallback(() => {
@@ -57,7 +90,6 @@ export default function KegiatanSection() {
     });
   }, [hasNav, openIndex, filtered.length]);
 
-  // ✅ Keyboard support saat modal terbuka
   useEffect(() => {
     if (openIndex === null) return;
 
@@ -98,32 +130,51 @@ export default function KegiatanSection() {
           </h1>
         </div>
 
-        {/* List kegiatan */}
         {!activeCat && (
           <>
             <p className="text-[13px] text-slate-600 dark:text-slate-300 mb-3">
               Klik salah satu kegiatan untuk melihat foto-fotonya.
             </p>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-              {kegiatanList.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setActiveCat(cat)}
-                  className="text-left rounded-xl border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/70 p-3 hover:shadow-md transition relative"
-                >
-                  <div className="flex items-start gap-2.5">
-                    <div className="shrink-0 rounded-md p-1.5 bg-emerald-50">
-                      <Images className="w-4 h-4 text-emerald-600" />
+            {loading && (
+              <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-5 text-[13px] text-slate-600 dark:text-slate-300">
+                Memuat data galeri...
+              </div>
+            )}
+
+            {err && (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 p-5 text-[13px] text-rose-700">
+                {err}
+              </div>
+            )}
+
+            {!loading && !err && (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                {kegiatanList.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setActiveCat(cat)}
+                    className="text-left rounded-xl border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/70 p-3 hover:shadow-md transition relative"
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <div className="shrink-0 rounded-md p-1.5 bg-emerald-50">
+                        <Images className="w-4 h-4 text-emerald-600" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-base font-semibold leading-snug">{cat}</div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-slate-400 absolute right-3 top-3" />
                     </div>
-                    <div className="flex-1">
-                      <div className="text-base font-semibold leading-snug">{cat}</div>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-slate-400 absolute right-3 top-3" />
+                  </button>
+                ))}
+
+                {kegiatanList.length === 0 && (
+                  <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-5 text-[13px] text-slate-600 dark:text-slate-300">
+                    Belum ada kategori galeri.
                   </div>
-                </button>
-              ))}
-            </div>
+                )}
+              </div>
+            )}
           </>
         )}
 
@@ -147,13 +198,9 @@ export default function KegiatanSection() {
         )}
       </section>
 
-      {/* ✅ Modal + slider kiri/kanan */}
+      {/* Modal */}
       {selected && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="fixed inset-0 z-40 flex items-center justify-center p-4"
-        >
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-40 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/55 backdrop-blur-sm" onClick={closeModal} />
 
           <motion.div
@@ -162,7 +209,6 @@ export default function KegiatanSection() {
             className="relative z-10 w-full max-w-6xl overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Gambar */}
             <div className="relative w-full aspect-[16/9] bg-black">
               {selected.image ? (
                 <Image
@@ -176,7 +222,6 @@ export default function KegiatanSection() {
                 <div className="absolute inset-0 bg-slate-300 dark:bg-slate-700" />
               )}
 
-              {/* Close */}
               <button
                 onClick={closeModal}
                 className="absolute top-3 right-3 z-20 p-2 rounded-lg bg-white/90 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700"
@@ -185,14 +230,12 @@ export default function KegiatanSection() {
                 <X className="w-4 h-4" />
               </button>
 
-              {/* ✅ Prev/Next buttons */}
               {hasNav && (
                 <>
                   <button
                     onClick={goPrev}
                     className="absolute left-4 top-1/2 -translate-y-1/2 z-20 h-10 w-10 rounded-full bg-white/90 hover:bg-white border border-slate-200 shadow grid place-items-center"
                     aria-label="Sebelumnya"
-                    title="Sebelumnya"
                     type="button"
                   >
                     <ChevronLeft className="w-5 h-5" />
@@ -201,13 +244,11 @@ export default function KegiatanSection() {
                     onClick={goNext}
                     className="absolute right-4 top-1/2 -translate-y-1/2 z-20 h-10 w-10 rounded-full bg-white/90 hover:bg-white border border-slate-200 shadow grid place-items-center"
                     aria-label="Berikutnya"
-                    title="Berikutnya"
                     type="button"
                   >
                     <ChevronRight className="w-5 h-5" />
                   </button>
 
-                  {/* indikator */}
                   <div className="absolute bottom-3 right-3 z-20 text-[12px] px-2 py-1 rounded-md bg-black/60 text-white">
                     {openIndex! + 1} / {filtered.length}
                   </div>
@@ -215,11 +256,8 @@ export default function KegiatanSection() {
               )}
             </div>
 
-            {/* Detail */}
             <div className="p-4">
-              <h4 className="text-base font-semibold">
-                {selected.title || getCategory(selected)}
-              </h4>
+              <h4 className="text-base font-semibold">{selected.title || getCategory(selected)}</h4>
 
               {selected.caption && (
                 <p className="text-[13px] text-slate-600 dark:text-slate-300 mt-3 leading-relaxed">
@@ -249,7 +287,6 @@ export default function KegiatanSection() {
   );
 }
 
-/* FOTO TILE */
 function PhotoTile({ item, onOpen }: { item: GalleryItem; onOpen: () => void }) {
   return (
     <button onClick={onOpen} className="group relative block w-full overflow-hidden rounded-xl">

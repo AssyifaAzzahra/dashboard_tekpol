@@ -1,4 +1,3 @@
-// components/layout/Sidebar.tsx
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -33,13 +32,10 @@ export default function Sidebar({
   onSelect: (k: PathKey) => void;
   onGoHomeView?: (v: HomeView) => void;
 }) {
-  // ✅ FIX: default submenu TERTUTUP
   const [openPengolahan, setOpenPengolahan] = useState(false);
   const [openInvestasi, setOpenInvestasi] = useState(false);
   const [openTeknik, setOpenTeknik] = useState(false);
 
-  // ✅ OPTIONAL: kalau sedang berada di submenu Pengolahan, auto-open
-  // Kalau kamu MAU tetap selalu tertutup (walau sedang di halaman tukang olah), HAPUS useEffect ini.
   useEffect(() => {
     const isInsidePengolahan = activeKey === ("pengolahan/tukangolah" as PathKey);
     if (isInsidePengolahan) setOpenPengolahan(true);
@@ -54,10 +50,13 @@ export default function Sidebar({
   const canSeeApproval = role === "KABAG" || role === "KASUBAG";
   const canSeeAdmin = role === "SUPERADMIN";
 
+  // ✅ HANYA 12 akun PKS: harus punya pksCode
+  const isPksUser = Boolean(data?.user?.pksCode);
+
   const goHomeView = (view: HomeView) => {
     onSelect("home");
     onGoHomeView?.(view);
-    router.push("/"); // tetap di halaman home
+    router.push("/");
   };
 
   const handleInfoLoginClick = () => {
@@ -71,9 +70,7 @@ export default function Sidebar({
   return (
     <aside className="rounded-2xl bg-white/80 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 p-3 h-fit sticky top-16">
       <div className="px-3 py-2 mb-2">
-        <div className="text-xs uppercase tracking-wide text-slate-500">
-          Navigasi
-        </div>
+        <div className="text-xs uppercase tracking-wide text-slate-500">Navigasi</div>
       </div>
 
       <div className="bg-white/90 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800 rounded-xl p-2 shadow-sm backdrop-blur-sm">
@@ -103,15 +100,9 @@ export default function Sidebar({
               openPengolahan && "bg-slate-50/70 dark:bg-slate-800/40"
             )}
           >
-            {openPengolahan ? (
-              <ChevronDown className="w-4 h-4" />
-            ) : (
-              <ChevronRight className="w-4 h-4" />
-            )}
+            {openPengolahan ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
             <Factory className="w-4 h-4" />
-            <span className="text-sm font-semibold text-left leading-snug">
-              Pengolahan
-            </span>
+            <span className="text-sm font-semibold text-left leading-snug">Pengolahan</span>
           </button>
 
           {openPengolahan && (
@@ -124,8 +115,7 @@ export default function Sidebar({
                 active={activeKey === ("pengolahan/tukangolah" as PathKey)}
                 className={cls(
                   "w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition text-left",
-                  activeKey === ("pengolahan/tukangolah" as PathKey) &&
-                    "bg-slate-100 dark:bg-slate-800"
+                  activeKey === ("pengolahan/tukangolah" as PathKey) && "bg-slate-100 dark:bg-slate-800"
                 )}
               >
                 <FileText className="w-4 h-4" />
@@ -135,7 +125,7 @@ export default function Sidebar({
           )}
         </div>
 
-        {/* Investasi & Eksploitasi Pabrik */}
+        {/* Investasi */}
         <div className="mt-2">
           <button
             type="button"
@@ -145,11 +135,7 @@ export default function Sidebar({
               openInvestasi && "bg-slate-50/70 dark:bg-slate-800/40"
             )}
           >
-            {openInvestasi ? (
-              <ChevronDown className="w-4 h-4" />
-            ) : (
-              <ChevronRight className="w-4 h-4" />
-            )}
+            {openInvestasi ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
             <FolderOpen className="w-4 h-4" />
             <span className="text-sm font-semibold text-left leading-snug whitespace-normal break-words">
               Investasi dan Eksploitasi Pabrik
@@ -166,8 +152,7 @@ export default function Sidebar({
                 active={activeKey === ("investasi/sub-instalasi-pks" as PathKey)}
                 className={cls(
                   "w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition text-left",
-                  activeKey === ("investasi/sub-instalasi-pks" as PathKey) &&
-                    "bg-slate-100 dark:bg-slate-800"
+                  activeKey === ("investasi/sub-instalasi-pks" as PathKey) && "bg-slate-100 dark:bg-slate-800"
                 )}
               >
                 <FileText className="w-4 h-4" />
@@ -177,7 +162,7 @@ export default function Sidebar({
           )}
         </div>
 
-        {/* Teknik & Infrastruktur */}
+        {/* Teknik */}
         <div className="mt-2">
           <button
             type="button"
@@ -187,15 +172,9 @@ export default function Sidebar({
               openTeknik && "bg-slate-50/70 dark:bg-slate-800/40"
             )}
           >
-            {openTeknik ? (
-              <ChevronDown className="w-4 h-4" />
-            ) : (
-              <ChevronRight className="w-4 h-4" />
-            )}
+            {openTeknik ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
             <FolderOpen className="w-4 h-4" />
-            <span className="text-sm font-semibold text-left leading-snug">
-              Teknik dan Infrastruktur
-            </span>
+            <span className="text-sm font-semibold text-left leading-snug">Teknik dan Infrastruktur</span>
           </button>
 
           {openTeknik && (
@@ -208,14 +187,11 @@ export default function Sidebar({
                 active={activeKey === ("teknik/sub" as PathKey)}
                 className={cls(
                   "w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition text-left",
-                  activeKey === ("teknik/sub" as PathKey) &&
-                    "bg-slate-100 dark:bg-slate-800"
+                  activeKey === ("teknik/sub" as PathKey) && "bg-slate-100 dark:bg-slate-800"
                 )}
               >
                 <FileText className="w-4 h-4" />
-                <span className="font-medium text-left">
-                  Sub Teknik dan Infrastruktur
-                </span>
+                <span className="font-medium text-left">Sub Teknik dan Infrastruktur</span>
               </ProtectedSelectButton>
             </div>
           )}
@@ -228,16 +204,30 @@ export default function Sidebar({
             onClick={() => onSelect("tekpol-apps" as PathKey)}
             className={cls(
               "w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition",
-              activeKey === ("tekpol-apps" as PathKey) &&
-                "bg-slate-100 dark:bg-slate-800"
+              activeKey === ("tekpol-apps" as PathKey) && "bg-slate-100 dark:bg-slate-800"
             )}
           >
             <AppWindow className="w-4 h-4" />
-            <span className="text-sm font-semibold text-left leading-snug">
-              Apps HO dan Regional
-            </span>
+            <span className="text-sm font-semibold text-left leading-snug">Apps HO dan Regional</span>
           </button>
         </div>
+
+        {/* ✅ Upload Dokumen PKS */}
+        {isPksUser && (
+          <div className="mt-2">
+            <button
+              type="button"
+              onClick={() => onSelect("pks-dokumen" as PathKey)}
+              className={cls(
+                "w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition",
+                activeKey === ("pks-dokumen" as PathKey) && "bg-slate-100 dark:bg-slate-800"
+              )}
+            >
+              <FileText className="w-4 h-4" />
+              <span className="text-sm font-semibold text-left leading-snug">Upload Dokumen PKS</span>
+            </button>
+          </div>
+        )}
 
         {/* Approval */}
         {canSeeApproval && (
@@ -247,14 +237,11 @@ export default function Sidebar({
               onClick={() => goHomeView("approval")}
               className={cls(
                 "w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition",
-                activeKey === ("approval" as PathKey) &&
-                  "bg-slate-100 dark:bg-slate-800"
+                activeKey === ("approval" as PathKey) && "bg-slate-100 dark:bg-slate-800"
               )}
             >
               <ShieldCheck className="w-4 h-4" />
-              <span className="text-sm font-semibold text-left leading-snug">
-                Approval
-              </span>
+              <span className="text-sm font-semibold text-left leading-snug">Approval</span>
             </button>
           </div>
         )}
@@ -268,9 +255,7 @@ export default function Sidebar({
               className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition"
             >
               <User className="w-4 h-4" />
-              <span className="text-sm font-semibold text-left leading-snug">
-                Admin (Superadmin)
-              </span>
+              <span className="text-sm font-semibold text-left leading-snug">Admin (Superadmin)</span>
             </button>
           </div>
         )}
@@ -286,9 +271,7 @@ export default function Sidebar({
         )}
       >
         <Images className="w-4 h-4" />
-        <span className="text-sm font-semibold text-left leading-snug">
-          Galeri
-        </span>
+        <span className="text-sm font-semibold text-left leading-snug">Galeri</span>
       </button>
 
       {/* Info Username & Password */}
@@ -300,9 +283,7 @@ export default function Sidebar({
         )}
       >
         <User className="w-4 h-4" />
-        <span className="text-sm font-semibold text-left leading-snug">
-          Info Username &amp; Password
-        </span>
+        <span className="text-sm font-semibold text-left leading-snug">Info Username &amp; Password</span>
       </button>
     </aside>
   );

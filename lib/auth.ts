@@ -1,34 +1,25 @@
 // lib/auth.ts
 import type { NextAuthOptions } from "next-auth";
-import Credentials from "next-auth/providers/credentials";
-import type { JWT } from "next-auth/jwt";
-import { prisma } from "./prisma";
+import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
-import type { Role } from "@prisma/client";
-import { z } from "zod";
-
-// Skema kredensial: hanya untuk user internal
-const CredsSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1),
-});
+import { prisma } from "@/lib/prisma";
 
 export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
-  pages: { signIn: "/login" },
 
   providers: [
-    Credentials({
-      name: "credentials",
+    CredentialsProvider({
+      name: "Credentials",
       credentials: {
         email: { label: "Email", type: "text" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(raw) {
-        const parsed = CredsSchema.safeParse(raw);
-        if (!parsed.success) return null;
 
-        const { email, password } = parsed.data;
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials.password) return null;
+
+        const email = credentials.email.toLowerCase().trim();
+        const password = credentials.password;
 
         const user = await prisma.user.findUnique({ where: { email } });
         if (!user || !user.passwordHash) return null;
@@ -36,13 +27,13 @@ export const authOptions: NextAuthOptions = {
         const ok = await bcrypt.compare(password, user.passwordHash);
         if (!ok) return null;
 
-        // Hanya user internal yang boleh login
         return {
           id: user.id,
           name: user.name,
-          email: user.email ?? undefined,
+          email: user.email,
           role: user.role,
           isPic: user.isPic,
+          pksCode: user.pksCode, // ✅ penting
         };
       },
     }),
@@ -50,38 +41,26 @@ export const authOptions: NextAuthOptions = {
 
   callbacks: {
     async jwt({ token, user }) {
-      // Saat pertama kali login, isi token dari user
       if (user) {
-        const u = user as typeof user & { role?: Role; isPic?: boolean };
-        token.role = u.role;
-        token.isPic = Boolean(u.isPic);
+        token.id = user.id;
+        token.role = user.role;
+        token.isPic = user.isPic;
+        token.pksCode = user.pksCode ?? null; // ✅ penting
       }
-      return token as JWT & { role?: Role; isPic?: boolean };
+      return token;
     },
 
     async session({ session, token }) {
-      if (!session.user) session.user = {};
-
-      session.user.id = token.sub;
-      session.user.role = token.role as Role | undefined;
-      session.user.isPic = Boolean(
-        (token as JWT & { isPic?: boolean }).isPic,
-      );
-
-      return session;
-    },
-
-    async redirect({ url, baseUrl }) {
-      if (url.startsWith("/")) return baseUrl + url;
-      try {
-        const target = new URL(url);
-        if (target.origin === baseUrl) return url;
-      } catch {
-        // abaikan error parsing
+      if (session.user) {
+        session.user.id = token.id as string;
+        session.user.role = token.role as any;
+        session.user.isPic = token.isPic as boolean | undefined;
+        session.user.pksCode = (token.pksCode as string | null) ?? null; // ✅ penting
       }
-      return baseUrl + "/";
+      return session;
     },
   },
 
+  pages: { signIn: "/login" },
   secret: process.env.NEXTAUTH_SECRET,
 };

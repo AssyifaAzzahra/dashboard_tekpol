@@ -21,6 +21,8 @@ export type PathKey =
   | "investasi/sub-instalasi-pks"
   | "teknik/sub"
   | "tekpol-apps"
+  | "pks-upload"
+  | "pks-dokumen"
   | "galeri";
 
 export type HomeView =

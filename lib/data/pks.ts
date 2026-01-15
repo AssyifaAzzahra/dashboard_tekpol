@@ -171,10 +171,12 @@ Hasil utama produksi dari PKS Sei Pagar adalah CPO (Crude Palm Oil) dan Kernel, 
   },
 
   "pks-terantam": {
-    fotoPks: "/images/pks.jpg",
-    fotoStruktur: "/images/struktur.png",
-    sejarahSingkat: "Penyangga pasokan Bengkalis; fokus otomasi pemantauan proses.",
-    hideSertifikasi: true,
+    fotoPks: "/images/pks/pksterantam.png",
+    fotoStruktur: "/images/pks/strukturterantam.png",
+    sejarahSingkat: "Unit kerja PKS Terantam mulai beroperasi sejak tahun 1989 dan memiliki luas areal sekitar 5,26 hektare. Lokasinya berada di Desa Kasikan, Kecamatan Tapung Hulu, Kabupaten Kampar, Provinsi Riau, dengan koordinat 100° 45' 02,8 – 0° 34' 45,1. Pabrik ini memiliki kapasitas terpasang sebesar 60 ton TBS per jam dengan sumber pasokan TBS berasal dari kebun inti, yaitu Kebun Terantam, Kebun Tamora, Kebun Sei Kencana, dan Sei Berlian. Produk utama yang dihasilkan adalah CPO dan PK, sedangkan produk sampingannya meliputi tankos, abu janjiang, fibre, cangkang, solid, serta abu boiler.",
+    galeri: [
+      "/images/pks/sertifikasiter1.png",
+      "/images/pks/sertifikasiter2.png"],
   },
 
   "pks-sei-tapung": {

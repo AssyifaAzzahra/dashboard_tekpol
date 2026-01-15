@@ -16,8 +16,12 @@ import {
   FileText,
 } from "lucide-react";
 
-
-type Menu = { href: string; label: string; icon: React.ReactNode; group?: "MAIN" | "CONTENT" };
+type Menu = {
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  group?: "MAIN" | "CONTENT";
+};
 
 const menus: Menu[] = [
   { href: "/admin", label: "Dashboard", icon: <LayoutDashboard className="h-4 w-4" />, group: "MAIN" },
@@ -28,11 +32,13 @@ const menus: Menu[] = [
 
   // CONTENT
   { href: "/admin/news", label: "News", icon: <Newspaper className="h-4 w-4" />, group: "CONTENT" },
-  { href: "/admin/instagram", label: "Instagram", icon: <Instagram className="h-4 w-4" />, group: "CONTENT" }, // ✅ NEW
+  { href: "/admin/instagram", label: "Instagram", icon: <Instagram className="h-4 w-4" />, group: "CONTENT" },
   { href: "/admin/gallery", label: "Gallery", icon: <ImageIcon className="h-4 w-4" />, group: "CONTENT" },
   { href: "/admin/gallery-categories", label: "Kategori Galeri", icon: <Tags className="h-4 w-4" />, group: "CONTENT" },
   { href: "/admin/pks-deck", label: "PPT PKS", icon: <FileText className="h-4 w-4" />, group: "CONTENT" },
 
+  // ✅ NEW: Dokumen dari 12 akun PKS
+  { href: "/admin/pks-documents", label: "Dokumen PKS", icon: <FileText className="h-4 w-4" />, group: "CONTENT" },
 ];
 
 export default function AdminSidebar() {
@@ -71,15 +77,11 @@ export default function AdminSidebar() {
           })}
         </div>
 
-        <div className="px-3 pt-2 text-[11px] uppercase tracking-wider text-slate-500">
-          Content
-        </div>
+        <div className="px-3 pt-2 text-[11px] uppercase tracking-wider text-slate-500">Content</div>
 
         <div className="space-y-1">
           {content.map((m) => {
-            // biar menu active juga saat path anaknya, misal /admin/news/xxx
             const active = path === m.href || path.startsWith(m.href + "/");
-
             return (
               <Link
                 key={m.href}

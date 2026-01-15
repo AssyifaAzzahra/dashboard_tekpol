@@ -1,4 +1,3 @@
-// app/page.tsx
 "use client";
 
 import React, { useMemo, useState } from "react";
@@ -13,8 +12,8 @@ import { CONTENT_MAP } from "@/lib/constants";
 import type { PathKey, LinkItem, HomeView } from "@/lib/types";
 import HomeRouter from "@/components/home/HomeRouter";
 
-// ✅ tambah import ini
 import TekpolAppsSection from "@/components/apps/TekpolAppsSection";
+import PksDocumentUploadSection from "@/components/pks/PksDocumentUploadSection";
 
 type GroupItem = { id: string; title: string; children: LinkItem[] };
 function isGroupItem(it: unknown): it is GroupItem {
@@ -74,8 +73,11 @@ export default function Page() {
           ) : activeKey === "galeri" ? (
             <KegiatanSection />
           ) : activeKey === "tekpol-apps" ? (
-            // ✅ INI YANG BIKIN APP ADMIN MUNCUL DI DASHBOARD
-            <TekpolAppsSection/>
+            <TekpolAppsSection />
+          ) : activeKey === ("pks-dokumen" as PathKey) ? (
+            <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/70 p-5">
+              <PksDocumentUploadSection />
+            </section>
           ) : (
             <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/70 p-5">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
@@ -118,7 +120,9 @@ export default function Page() {
                               <FileText className="w-5 h-5 text-emerald-600" />
                               <h3 className="font-semibold leading-tight truncate">{item.title}</h3>
                             </div>
-                            {item.desc && <p className="text-sm text-slate-500 mt-1 truncate">{item.desc}</p>}
+                            {item.desc && (
+                              <p className="text-sm text-slate-500 mt-1 truncate">{item.desc}</p>
+                            )}
                             {item.tag && (
                               <span className="mt-2 inline-flex px-2 py-0.5 rounded-md text-xs bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                                 {item.tag}
