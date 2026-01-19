@@ -9,7 +9,6 @@ import {
   UserRound,
   Mail,
   Lock,
-  ArrowRight,
   Building2,
 } from 'lucide-react';
 
@@ -21,7 +20,8 @@ function LoginPageInner() {
 
   const [mode, setMode] = useState<LoginMode>('USER');
 
-  const [email, setEmail] = useState<string>('');
+  // ✅ ganti dari email -> identifier (email atau SAP)
+  const [identifier, setIdentifier] = useState<string>('');
   const [password, setPassword] = useState<string>('');
 
   const [errorMsg, setErrorMsg] = useState<string>('');
@@ -33,25 +33,27 @@ function LoginPageInner() {
     setLoading(true);
 
     try {
-      if (!email.trim() || !password.trim()) {
-        setErrorMsg('Email dan password wajib diisi.');
+      if (!identifier.trim() || !password.trim()) {
+        setErrorMsg('Email/No. SAP dan password wajib diisi.');
         setLoading(false);
         return;
       }
 
       const res = await signIn('credentials', {
         redirect: false,
-        email,
+        identifier: identifier.trim(), // ✅ kirim identifier
         password,
+        callbackUrl,
       });
 
       if (res?.error) {
-        setErrorMsg('Email atau password tidak sesuai.');
+        setErrorMsg('Email/No. SAP atau password tidak sesuai.');
         setLoading(false);
         return;
       }
 
-      window.location.href = '/';
+      // redirect manual
+      window.location.href = callbackUrl || '/';
     } catch {
       setErrorMsg('Gagal masuk. Coba lagi.');
       setLoading(false);
@@ -167,10 +169,11 @@ function LoginPageInner() {
               <div className="relative">
                 <Mail className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                 <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="email@tekpol"
+                  type="text" // ✅ bisa email atau SAP
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  placeholder="email/ No. SAP"
+                  autoComplete="username"
                   className="w-full pl-9 py-2 border rounded-lg"
                 />
               </div>
@@ -182,6 +185,7 @@ function LoginPageInner() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
+                  autoComplete="current-password"
                   className="w-full pl-9 py-2 border rounded-lg"
                 />
               </div>
@@ -193,9 +197,9 @@ function LoginPageInner() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-emerald-600 text-white rounded-lg py-2 font-semibold"
+                className="w-full bg-emerald-600 text-white rounded-lg py-2 font-semibold disabled:opacity-70"
               >
-                Masuk →
+                {loading ? 'Memproses...' : 'Masuk →'}
               </button>
 
               <Link

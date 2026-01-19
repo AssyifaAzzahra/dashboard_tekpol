@@ -7,23 +7,15 @@ import bcrypt from "bcryptjs";
 import { writeAuditLog } from "@/lib/audit";
 import type { Prisma, Role } from "@prisma/client";
 
-const RoleEnum = z.enum(["SUPERADMIN", "ADMIN", "PKWT", "KARYAWAN", "KASUBAG", "KABAG", "GUEST"]);
-
-const CreateUserSchema = z.object({
-  name: z.string().min(1),
-  email: z.string().email(),
-  password: z.string().min(6),
-  role: RoleEnum,
-  isPic: z.boolean().optional(),
-});
-
-const UpdateSchema = z.object({
-  name: z.string().min(1).optional(),
-  email: z.string().email().optional(),
-  role: RoleEnum.optional(),
-  isPic: z.boolean().optional(),
-  resetPassword: z.string().min(6).optional(),
-});
+const RoleEnum = z.enum([
+  "SUPERADMIN",
+  "ADMIN",
+  "PKWT",
+  "KARYAWAN",
+  "KASUBAG",
+  "KABAG",
+  "GUEST",
+]);
 
 function jsonError(status: number, message: string, extra?: unknown) {
   return NextResponse.json(
@@ -32,11 +24,7 @@ function jsonError(status: number, message: string, extra?: unknown) {
   );
 }
 
-type PrismaLikeError = {
-  code?: string;
-  meta?: unknown;
-  message?: string;
-};
+type PrismaLikeError = { code?: string; meta?: unknown; message?: string };
 
 function asPrismaLikeError(e: unknown): PrismaLikeError {
   if (typeof e === "object" && e !== null) {
@@ -60,17 +48,116 @@ function errorToString(e: unknown): string {
   }
 }
 
+// ---------- helpers ----------
+const isEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+const isDigits = (s: string) => /^\d+$/.test(s);
+
+function normalizeString(v: unknown): string | undefined {
+  if (typeof v !== "string") return undefined;
+  const t = v.trim();
+  return t === "" ? undefined : t;
+}
+
+function normalizeEmail(v: unknown): string | undefined {
+  const t = normalizeString(v);
+  if (!t) return undefined;
+  return t.toLowerCase();
+}
+
+// ✅ auto-fix: kalau email ternyata angka, pindahkan ke sapNo
+function coerceEmailSap(input: { email?: unknown; sapNo?: unknown }) {
+  const emailRaw = normalizeEmail(input.email);
+  const sapRaw = normalizeString(input.sapNo);
+
+  // kalau email terisi tapi bukan email valid
+  if (emailRaw && !isEmail(emailRaw)) {
+    // kalau bentuknya angka dan sapNo masih kosong -> treat sebagai sapNo
+    if (isDigits(emailRaw) && !sapRaw) {
+      return { email: undefined, sapNo: emailRaw };
+    }
+    // email tidak valid dan bukan angka -> tetap invalid
+    return { email: emailRaw, sapNo: sapRaw };
+  }
+
+  return { email: emailRaw, sapNo: sapRaw };
+}
+
+// ---------- Zod preprocess (hindari "val merah") ----------
+const emptyToUndefined = (v: unknown) => {
+  const t = normalizeString(v);
+  return t === undefined ? undefined : t;
+};
+
+const EmailField = z.preprocess(emptyToUndefined, z.string().email("Invalid email address").optional());
+const SapNoField = z.preprocess(
+  emptyToUndefined,
+  z.string().regex(/^\d+$/, "No. SAP harus angka").optional()
+);
+
+// ✅ CREATE schema (tapi akan kita coerce dulu sebelum parse)
+const CreateUserSchema = z
+  .object({
+    name: z.string().min(1),
+    email: EmailField,
+    sapNo: SapNoField,
+    password: z.string().min(6),
+    role: RoleEnum,
+    isPic: z.boolean().optional(),
+  })
+  .superRefine((data, ctx) => {
+    const emailOk = typeof data.email === "string" && data.email.trim() !== "";
+    const sapOk = typeof data.sapNo === "string" && data.sapNo.trim() !== "";
+    if (!emailOk && !sapOk) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Isi minimal Email atau No. SAP",
+        path: ["email"],
+      });
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Isi minimal Email atau No. SAP",
+        path: ["sapNo"],
+      });
+    }
+  });
+
+// ✅ UPDATE schema (kita coerce juga sebelum parse)
+const UpdateSchema = z.object({
+  name: z.string().min(1).optional(),
+  email: EmailField,
+  sapNo: SapNoField,
+  role: RoleEnum.optional(),
+  isPic: z.boolean().optional(),
+  resetPassword: z.string().min(6).optional(),
+});
+
+function undefToNull(v: string | undefined): string | null {
+  return v === undefined ? null : v;
+}
+
 // ------------ GET (list) ------------
 export async function GET() {
   const guard = await requireSuperadmin();
   if (!guard.ok) return guard.res;
 
-  const users = await prisma.user.findMany({
-    orderBy: { createdAt: "desc" },
-    select: { id: true, name: true, email: true, role: true, isPic: true, createdAt: true },
-  });
+  try {
+    const users = await prisma.user.findMany({
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        sapNo: true,
+        role: true,
+        isPic: true,
+        createdAt: true,
+      },
+    });
 
-  return NextResponse.json(users);
+    return NextResponse.json(users);
+  } catch (e) {
+    return jsonError(500, "Gagal load users.", { detail: errorToString(e) });
+  }
 }
 
 // ------------ POST (create) ------------
@@ -81,8 +168,29 @@ export async function POST(req: NextRequest) {
   const actorId = guard.session.user?.id ?? null;
   const actorEmail = (guard.session.user?.email ?? null) as string | null;
 
-  const parsed = CreateUserSchema.safeParse(await req.json());
-  if (!parsed.success) return NextResponse.json(parsed.error, { status: 400 });
+  let body: any;
+  try {
+    body = await req.json();
+  } catch (e) {
+    return jsonError(400, "Body JSON tidak valid.", { detail: errorToString(e) });
+  }
+
+  // ✅ Auto-fix: kalau SAP masuk ke email, pindahkan ke sapNo
+  const coerced = coerceEmailSap({ email: body?.email, sapNo: body?.sapNo });
+
+  // gunakan body asli tapi override email/sapNo yang sudah dicoerce
+  const parsed = CreateUserSchema.safeParse({
+    ...body,
+    email: coerced.email,
+    sapNo: coerced.sapNo,
+  });
+
+  if (!parsed.success) {
+    return NextResponse.json(
+      { name: "ZodError", message: parsed.error.message, issues: parsed.error.issues },
+      { status: 400 }
+    );
+  }
 
   try {
     const passwordHash = await bcrypt.hash(parsed.data.password, 10);
@@ -90,12 +198,21 @@ export async function POST(req: NextRequest) {
     const created = await prisma.user.create({
       data: {
         name: parsed.data.name,
-        email: parsed.data.email,
-        role: parsed.data.role,
+        email: undefToNull(parsed.data.email),
+        sapNo: undefToNull(parsed.data.sapNo),
+        role: parsed.data.role as Role,
         isPic: parsed.data.isPic ?? false,
         passwordHash,
       },
-      select: { id: true, name: true, email: true, role: true, isPic: true, createdAt: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        sapNo: true,
+        role: true,
+        isPic: true,
+        createdAt: true,
+      },
     });
 
     await writeAuditLog({
@@ -110,13 +227,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(created, { status: 201 });
   } catch (e: unknown) {
     const pe = asPrismaLikeError(e);
-
-    // Unique constraint (biasanya email unique)
     if (pe.code === "P2002") {
-      return jsonError(409, "Email sudah digunakan (duplicate).", { code: pe.code, meta: pe.meta });
+      return jsonError(409, "Email atau No. SAP sudah digunakan (duplicate).", {
+        code: pe.code,
+        meta: pe.meta,
+      });
     }
-
-    return jsonError(500, "Gagal create user.", errorToString(e));
+    return jsonError(500, "Gagal create user.", { detail: errorToString(e) });
   }
 }
 
@@ -134,16 +251,48 @@ export async function PATCH(req: NextRequest) {
 
   const before = await prisma.user.findUnique({
     where: { id },
-    select: { id: true, name: true, email: true, role: true, isPic: true, createdAt: true },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      sapNo: true,
+      role: true,
+      isPic: true,
+      createdAt: true,
+    },
   });
   if (!before) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const parsed = UpdateSchema.safeParse(await req.json());
-  if (!parsed.success) return NextResponse.json(parsed.error, { status: 400 });
+  let body: any;
+  try {
+    body = await req.json();
+  } catch (e) {
+    return jsonError(400, "Body JSON tidak valid.", { detail: errorToString(e) });
+  }
+
+  // ✅ Auto-fix juga di update kalau UI masih salah kirim
+  const coerced = coerceEmailSap({ email: body?.email, sapNo: body?.sapNo });
+
+  const parsed = UpdateSchema.safeParse({
+    ...body,
+    email: coerced.email,
+    sapNo: coerced.sapNo,
+  });
+
+  if (!parsed.success) {
+    return NextResponse.json(
+      { name: "ZodError", message: parsed.error.message, issues: parsed.error.issues },
+      { status: 400 }
+    );
+  }
 
   const data: Prisma.UserUpdateInput = {};
   if (parsed.data.name !== undefined) data.name = parsed.data.name;
-  if (parsed.data.email !== undefined) data.email = parsed.data.email;
+
+  // hanya update kalau field ada di body (agar tidak men-null-kan tanpa sengaja)
+  if ("email" in body) data.email = undefToNull(parsed.data.email);
+  if ("sapNo" in body) data.sapNo = undefToNull(parsed.data.sapNo);
+
   if (parsed.data.role !== undefined) data.role = parsed.data.role as Role;
   if (parsed.data.isPic !== undefined) data.isPic = parsed.data.isPic;
 
@@ -152,11 +301,29 @@ export async function PATCH(req: NextRequest) {
     data.passwordHash = await bcrypt.hash(parsed.data.resetPassword!.trim(), 10);
   }
 
+  // ✅ Guard: jangan sampai hasil akhir email & sapNo sama-sama null
+  const emailNext =
+    "email" in body ? (data.email as string | null) : before.email;
+  const sapNext =
+    "sapNo" in body ? (data.sapNo as string | null) : before.sapNo;
+
+  if (!emailNext && !sapNext) {
+    return jsonError(400, "Minimal salah satu: Email atau No. SAP harus terisi.");
+  }
+
   try {
     const updated = await prisma.user.update({
       where: { id },
       data,
-      select: { id: true, name: true, email: true, role: true, isPic: true, createdAt: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        sapNo: true,
+        role: true,
+        isPic: true,
+        createdAt: true,
+      },
     });
 
     await writeAuditLog({
@@ -171,12 +338,13 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json(updated);
   } catch (e: unknown) {
     const pe = asPrismaLikeError(e);
-
     if (pe.code === "P2002") {
-      return jsonError(409, "Email sudah digunakan (duplicate).", { code: pe.code, meta: pe.meta });
+      return jsonError(409, "Email atau No. SAP sudah digunakan (duplicate).", {
+        code: pe.code,
+        meta: pe.meta,
+      });
     }
-
-    return jsonError(500, "Gagal update user.", errorToString(e));
+    return jsonError(500, "Gagal update user.", { detail: errorToString(e) });
   }
 }
 
@@ -194,7 +362,15 @@ export async function DELETE(req: NextRequest) {
 
   const before = await prisma.user.findUnique({
     where: { id },
-    select: { id: true, name: true, email: true, role: true, isPic: true, createdAt: true },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      sapNo: true,
+      role: true,
+      isPic: true,
+      createdAt: true,
+    },
   });
   if (!before) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
@@ -219,7 +395,6 @@ export async function DELETE(req: NextRequest) {
   } catch (e: unknown) {
     const pe = asPrismaLikeError(e);
 
-    // FK constraint
     if (pe.code === "P2003") {
       return jsonError(409, "Tidak bisa delete user karena masih ada relasi (FK constraint).", {
         code: pe.code,
@@ -227,6 +402,6 @@ export async function DELETE(req: NextRequest) {
       });
     }
 
-    return jsonError(500, "Gagal delete user.", errorToString(e));
+    return jsonError(500, "Gagal delete user.", { detail: errorToString(e) });
   }
 }
