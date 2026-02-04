@@ -17,35 +17,107 @@ import {
   ChevronLeft,
   ChevronRight,
   BadgeCheck,
+  IdCard,
+  BriefcaseBusiness,
 } from "lucide-react";
 
-type Role = "SUPERADMIN" | "ADMIN" | "PKWT" | "KARYAWAN" | "KASUBAG" | "KABAG" | "GUEST";
+type Role =
+  | "SUPERADMIN"
+  | "ADMIN"
+  | "PKWT"
+  | "KARYAWAN"
+  | "KASUBAG"
+  | "KABAG"
+  | "GUEST";
 
 type UserItem = {
   id: string;
   name: string;
   email: string | null;
+  sapNo: string | null;
+  jabatan: string | null;
   role: Role;
   isPic: boolean;
   createdAt: string;
 };
 
-const ROLES = ["SUPERADMIN", "ADMIN", "PKWT", "KARYAWAN", "KASUBAG", "KABAG", "GUEST"] as const;
+const ROLES = [
+  "SUPERADMIN",
+  "ADMIN",
+  "PKWT",
+  "KARYAWAN",
+  "KASUBAG",
+  "KABAG",
+  "GUEST",
+] as const;
 
 function parseRole(v: string): Role {
   return (ROLES as readonly string[]).includes(v) ? (v as Role) : "PKWT";
 }
 
 function badgeRole(r: Role) {
-  if (r === "SUPERADMIN") return "bg-emerald-50 text-emerald-900 border-emerald-200";
+  if (r === "SUPERADMIN")
+    return "bg-emerald-50 text-emerald-900 border-emerald-200";
   if (r === "ADMIN") return "bg-sky-50 text-sky-900 border-sky-200";
-  if (r === "KABAG" || r === "KASUBAG") return "bg-amber-50 text-amber-900 border-amber-200";
+  if (r === "KABAG" || r === "KASUBAG")
+    return "bg-amber-50 text-amber-900 border-amber-200";
   return "bg-slate-50 text-slate-900 border-slate-200";
+}
+
+// ✅ Pilihan Jabatan (silakan tambah/ubah sesuai kebutuhan)
+const JABATAN_OPTIONS = [
+  "Kepala Bagian",
+  "Senior Konsultan Tekpol",
+  "Junior Konsultan Internal Bagian Tekpol",
+
+  "Ka. Sub Bagian Investasi dan Eksploitasi Pabrik",
+  "Ka. Sub Bagian Teknik dan Infrastruktur Kebun",
+  "Ka. Sub Bagian Pengolahan",
+
+  "Asisten Mesin dan Instalasi Pabrik",
+  "Asisten Traksi & Alat Berat Kebun",
+  "Asisten Sipil & Infrastruktur Kebun",
+  "Asisten Proses Pengolahan Kelapa Sawit",
+  "Asisten Proses & Evaluasi Pengolahan Karet",
+  "Asisten QC Pengolahan Kelapa Sawit",
+
+  "Krani Urusan Teknik dan Pengolahan Komoditi Kelapa Sawit",
+  "Krani Kepala Bagian Teknik dan Pengolahan",
+  "Krani Urusan Administrasi Sekretariat",
+  "Krani Urusan Administrasi Teknik dan Pengolahan",
+  "Krani Urusan Traksi",
+  "Krani Urusan Infrastruktur Produksi",
+  "Krani Urusan Administrasi",
+  "Krani Maintenance IoT dan Engineering",
+  "Krani PPQM",
+  "Krani Drafter Tekpol",
+
+  "PKWT Urusan Sipil",
+  "PKWT / Krani Urusan Sipil",
+  "PKWT Pembantu Mekanik Workshop SGH",
+] as const;
+
+type Jabatan = (typeof JABATAN_OPTIONS)[number] | ""; // "" untuk belum pilih
+
+function inferRoleFromJabatan(jabatan: string): Role {
+  const j = jabatan.toLowerCase();
+
+  if (!j) return "PKWT"; // default awal (boleh kamu ubah)
+
+  if (j.includes("kepala bagian")) return "KABAG";
+  if (j.includes("ka. sub bagian") || j.includes("ka sub bagian") || j.includes("kasub"))
+    return "KASUBAG";
+  if (j.includes("pkwt")) return "PKWT";
+
+  // selain itu dianggap karyawan
+  return "KARYAWAN";
 }
 
 type CreateForm = {
   name: string;
   email: string;
+  sapNo: string;
+  jabatan: Jabatan;
   password: string;
   role: Role;
   isPic: boolean;
@@ -54,6 +126,8 @@ type CreateForm = {
 type EditForm = {
   name: string;
   email: string;
+  sapNo: string;
+  jabatan: Jabatan;
   role: Role;
   isPic: boolean;
   resetPassword: string;
@@ -88,12 +162,7 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <div
-      className={cls(
-        "relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
-      )}
-    >
-      {/* subtle accent (match dashboard) */}
+    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="pointer-events-none absolute -right-10 -top-10 h-24 w-24 rounded-full bg-indigo-400/10 blur-2xl" />
 
       <div className="px-4 py-3 border-b border-slate-200 bg-gradient-to-b from-white to-slate-50">
@@ -125,6 +194,8 @@ export default function AdminUsersPage() {
   const [createForm, setCreateForm] = useState<CreateForm>({
     name: "",
     email: "",
+    sapNo: "",
+    jabatan: "",
     password: "",
     role: "PKWT",
     isPic: false,
@@ -133,6 +204,8 @@ export default function AdminUsersPage() {
   const [editForm, setEditForm] = useState<EditForm>({
     name: "",
     email: "",
+    sapNo: "",
+    jabatan: "",
     role: "PKWT",
     isPic: false,
     resetPassword: "",
@@ -161,7 +234,6 @@ export default function AdminUsersPage() {
     }
   }, []);
 
-  // initial load tanpa useEffect
   const didInit = useRef(false);
   if (!didInit.current) {
     didInit.current = true;
@@ -175,13 +247,14 @@ export default function AdminUsersPage() {
       return (
         u.name.toLowerCase().includes(s) ||
         (u.email ?? "").toLowerCase().includes(s) ||
+        (u.sapNo ?? "").toLowerCase().includes(s) ||
+        (u.jabatan ?? "").toLowerCase().includes(s) ||
         u.role.toLowerCase().includes(s) ||
         (u.isPic ? "pic" : "nonpic").includes(s)
       );
     });
   }, [users, q]);
 
-  // pagination (client-side)
   const total = filtered.length;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const safePage = Math.min(Math.max(page, 1), totalPages);
@@ -197,6 +270,8 @@ export default function AdminUsersPage() {
     setEditForm({
       name: u.name,
       email: u.email ?? "",
+      sapNo: u.sapNo ?? "",
+      jabatan: (u.jabatan ?? "") as Jabatan,
       role: u.role,
       isPic: u.isPic,
       resetPassword: "",
@@ -224,7 +299,16 @@ export default function AdminUsersPage() {
       return;
     }
 
-    setCreateForm({ name: "", email: "", password: "", role: "PKWT", isPic: false });
+    setCreateForm({
+      name: "",
+      email: "",
+      sapNo: "",
+      jabatan: "",
+      password: "",
+      role: "PKWT",
+      isPic: false,
+    });
+
     await load();
   }, [createForm, load]);
 
@@ -236,12 +320,16 @@ export default function AdminUsersPage() {
     const payload: {
       name: string;
       email: string;
+      sapNo: string;
+      jabatan: string;
       role: Role;
       isPic: boolean;
       resetPassword?: string;
     } = {
       name: editForm.name,
       email: editForm.email,
+      sapNo: editForm.sapNo,
+      jabatan: editForm.jabatan,
       role: editForm.role,
       isPic: editForm.isPic,
     };
@@ -263,23 +351,26 @@ export default function AdminUsersPage() {
       return;
     }
 
-    const updated = (await res.json().catch(() => null)) as UserItem | null;
-
     await load();
-
-    if (updated?.id) {
-      setSelected(updated);
-      setEditForm({
-        name: updated.name,
-        email: updated.email ?? "",
-        role: updated.role,
-        isPic: updated.isPic,
-        resetPassword: "",
-      });
-    } else {
-      setEditForm((p) => ({ ...p, resetPassword: "" }));
-    }
+    setEditForm((p) => ({ ...p, resetPassword: "" }));
   }, [selected, editForm, load]);
+
+  // ✅ handler ketika jabatan dipilih: set jabatan + auto role
+  const onPickCreateJabatan = (jabatan: Jabatan) => {
+    setCreateForm((p) => ({
+      ...p,
+      jabatan,
+      role: jabatan ? inferRoleFromJabatan(jabatan) : p.role,
+    }));
+  };
+
+  const onPickEditJabatan = (jabatan: Jabatan) => {
+    setEditForm((p) => ({
+      ...p,
+      jabatan,
+      role: jabatan ? inferRoleFromJabatan(jabatan) : p.role,
+    }));
+  };
 
   const remove = useCallback(async () => {
     if (!selected) return;
@@ -304,18 +395,12 @@ export default function AdminUsersPage() {
 
   return (
     <AdminShell title="Users" subtitle="Kelola user, role, dan PIC (clean UI + pagination)">
-      {/* page backdrop (match dashboard) */}
-      <div className="relative">
-        <div className="pointer-events-none absolute -inset-x-6 -top-6 h-40 rounded-3xl bg-gradient-to-r from-indigo-500/10 via-sky-500/10 to-emerald-500/10 blur-2xl" />
-      </div>
-
       {err && (
         <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 text-rose-900 px-3 py-2 text-sm shadow-sm">
           {err}
         </div>
       )}
 
-      {/* Top bar */}
       <div className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
         <div className="text-sm text-slate-600">
           Total: <span className="font-semibold text-slate-950">{total}</span> users
@@ -343,8 +428,7 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
-      {/* Search */}
-      <Panel title="Search" subtitle="Cari berdasarkan nama / email / role / PIC">
+      <Panel title="Search" subtitle="Cari berdasarkan nama / email / SAP / jabatan / role / PIC">
         <div className="relative">
           <Search className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <Input
@@ -362,8 +446,6 @@ export default function AdminUsersPage() {
       <div className="mt-4 grid lg:grid-cols-2 gap-4">
         {/* table */}
         <div className="relative rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-          <div className="pointer-events-none absolute -right-10 -top-10 h-24 w-24 rounded-full bg-sky-400/10 blur-2xl" />
-
           <div className="px-4 py-3 border-b border-slate-200 bg-gradient-to-b from-white to-slate-50 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4 text-slate-700" />
@@ -380,6 +462,8 @@ export default function AdminUsersPage() {
               <thead className="text-left bg-slate-50 sticky top-0 z-10">
                 <tr className="text-slate-600">
                   <th className="p-3">User</th>
+                  <th className="p-3">No. SAP</th>
+                  <th className="p-3">Jabatan</th>
                   <th className="p-3">Role</th>
                   <th className="p-3">PIC</th>
                   <th className="p-3">Created</th>
@@ -399,20 +483,25 @@ export default function AdminUsersPage() {
                       onClick={() => pick(u)}
                     >
                       <td className="p-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <div className="font-medium text-slate-950 truncate">{u.name}</div>
-                            <div className="mt-0.5 text-xs text-slate-600 flex items-center gap-2">
-                              <span className="inline-flex items-center gap-1 min-w-0">
-                                <Mail className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                                <span className="truncate">{u.email ?? "-"}</span>
-                              </span>
-                            </div>
-                          </div>
-                          <span className="font-mono text-[11px] text-slate-500 shrink-0" title={u.id}>
-                            {monoId(u.id)}
-                          </span>
+                        <div className="font-medium text-slate-950">{u.name}</div>
+                        <div className="mt-0.5 text-xs text-slate-600 flex items-center gap-1">
+                          <Mail className="h-3.5 w-3.5 text-slate-400" />
+                          {u.email ?? "-"}
                         </div>
+                      </td>
+
+                      <td className="p-3 text-slate-700 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1">
+                          <IdCard className="h-4 w-4 text-slate-400" />
+                          {u.sapNo ?? "-"}
+                        </span>
+                      </td>
+
+                      <td className="p-3 text-slate-700">
+                        <span className="inline-flex items-center gap-1">
+                          <BriefcaseBusiness className="h-4 w-4 text-slate-400" />
+                          {u.jabatan ?? "-"}
+                        </span>
                       </td>
 
                       <td className="p-3">
@@ -449,7 +538,7 @@ export default function AdminUsersPage() {
 
                 {!loading && total === 0 && (
                   <tr>
-                    <td colSpan={4} className="p-5 text-slate-600">
+                    <td colSpan={6} className="p-5 text-slate-600">
                       No users.
                     </td>
                   </tr>
@@ -457,7 +546,7 @@ export default function AdminUsersPage() {
 
                 {loading && (
                   <tr>
-                    <td colSpan={4} className="p-5 text-slate-600">
+                    <td colSpan={6} className="p-5 text-slate-600">
                       Memuat data...
                     </td>
                   </tr>
@@ -466,7 +555,6 @@ export default function AdminUsersPage() {
             </table>
           </div>
 
-          {/* Pagination */}
           <div className="px-4 py-3 border-t border-slate-200 bg-white flex items-center justify-between">
             <div className="text-xs text-slate-600">
               Menampilkan{" "}
@@ -502,48 +590,45 @@ export default function AdminUsersPage() {
 
         {/* forms */}
         <div className="space-y-4">
-          {/* create */}
-          <Panel
-            title="Create User"
-            subtitle="Tambah user baru"
-            right={
-              <span className="inline-flex items-center gap-2 text-xs text-slate-600">
-                <UserPlus className="h-4 w-4" />
-                Create
-              </span>
-            }
-          >
+          <Panel title="Create User" subtitle="Tambah user baru (Email atau No. SAP)">
             <div className="grid gap-2">
-              <div className="relative">
-                <Users className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <Input
-                  className="pl-9 rounded-xl border-slate-200 focus-visible:ring-slate-200"
-                  placeholder="Name"
-                  value={createForm.name}
-                  onChange={(e) => setCreateForm((p) => ({ ...p, name: e.target.value }))}
-                />
-              </div>
+              <Input
+                className="rounded-xl border-slate-200 focus-visible:ring-slate-200"
+                placeholder="Nama"
+                value={createForm.name}
+                onChange={(e) => setCreateForm((p) => ({ ...p, name: e.target.value }))}
+              />
 
-              <div className="relative">
-                <Mail className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <div className="grid md:grid-cols-2 gap-2">
                 <Input
-                  className="pl-9 rounded-xl border-slate-200 focus-visible:ring-slate-200"
-                  placeholder="Email"
+                  className="rounded-xl border-slate-200 focus-visible:ring-slate-200"
+                  placeholder="No. SAP (opsional)"
+                  value={createForm.sapNo}
+                  onChange={(e) => setCreateForm((p) => ({ ...p, sapNo: e.target.value }))}
+                />
+                <Input
+                  className="rounded-xl border-slate-200 focus-visible:ring-slate-200"
+                  placeholder="Email (opsional)"
                   value={createForm.email}
                   onChange={(e) => setCreateForm((p) => ({ ...p, email: e.target.value }))}
                 />
               </div>
 
-              <div className="relative">
-                <KeyRound className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <Input
-                  className="pl-9 rounded-xl border-slate-200 focus-visible:ring-slate-200"
-                  placeholder="Password (min 6)"
-                  value={createForm.password}
-                  onChange={(e) => setCreateForm((p) => ({ ...p, password: e.target.value }))}
-                />
-              </div>
+              {/* ✅ Jabatan dropdown */}
+              <select
+                className="border border-slate-200 bg-white text-slate-900 rounded-xl px-3 py-2 text-sm shadow-sm outline-none focus:ring-2 focus:ring-slate-200"
+                value={createForm.jabatan}
+                onChange={(e) => onPickCreateJabatan(e.target.value as Jabatan)}
+              >
+                <option value="">Pilih Jabatan / Posisi</option>
+                {JABATAN_OPTIONS.map((j) => (
+                  <option key={j} value={j}>
+                    {j}
+                  </option>
+                ))}
+              </select>
 
+              {/* role (auto berubah, tapi masih bisa override) */}
               <select
                 className="border border-slate-200 bg-white text-slate-900 rounded-xl px-3 py-2 text-sm shadow-sm outline-none focus:ring-2 focus:ring-slate-200"
                 value={createForm.role}
@@ -555,6 +640,13 @@ export default function AdminUsersPage() {
                   </option>
                 ))}
               </select>
+
+              <Input
+                className="rounded-xl border-slate-200 focus-visible:ring-slate-200"
+                placeholder="Password (min 6)"
+                value={createForm.password}
+                onChange={(e) => setCreateForm((p) => ({ ...p, password: e.target.value }))}
+              />
 
               <label className="text-sm flex items-center gap-2 text-slate-800">
                 <input
@@ -577,29 +669,18 @@ export default function AdminUsersPage() {
             </div>
           </Panel>
 
-          {/* edit */}
           <div className="relative rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-            <div className="pointer-events-none absolute -right-10 -top-10 h-24 w-24 rounded-full bg-violet-400/10 blur-2xl" />
-
-            <div className="px-4 py-3 border-b border-slate-200 bg-gradient-to-b from-white to-slate-50 flex items-center justify-between">
-              <div>
-                <div className="text-sm font-semibold text-slate-950">Edit Selected</div>
-                <div className="text-xs text-slate-600">
-                  {selected ? (
-                    <>
-                      ID: <span className="font-mono">{monoId(selected.id)}</span>
-                    </>
-                  ) : (
-                    "Pilih user dari tabel"
-                  )}
-                </div>
+            <div className="px-4 py-3 border-b border-slate-200 bg-gradient-to-b from-white to-slate-50">
+              <div className="text-sm font-semibold text-slate-950">Edit Selected</div>
+              <div className="text-xs text-slate-600">
+                {selected ? (
+                  <>
+                    ID: <span className="font-mono">{monoId(selected.id)}</span>
+                  </>
+                ) : (
+                  "Pilih user dari tabel"
+                )}
               </div>
-
-              {selected ? (
-                <span className="text-xs text-slate-700 rounded-full border border-slate-200 bg-slate-50 px-2 py-1">
-                  Selected
-                </span>
-              ) : null}
             </div>
 
             <div className="p-4 md:p-5">
@@ -610,16 +691,38 @@ export default function AdminUsersPage() {
                   <div className="grid md:grid-cols-2 gap-2">
                     <Input
                       className="rounded-xl border-slate-200 focus-visible:ring-slate-200"
-                      placeholder="Name"
+                      placeholder="Nama"
                       value={editForm.name}
                       onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))}
                     />
                     <Input
                       className="rounded-xl border-slate-200 focus-visible:ring-slate-200"
-                      placeholder="Email"
+                      placeholder="Email (opsional)"
                       value={editForm.email}
                       onChange={(e) => setEditForm((p) => ({ ...p, email: e.target.value }))}
                     />
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-2">
+                    <Input
+                      className="rounded-xl border-slate-200 focus-visible:ring-slate-200"
+                      placeholder="No. SAP (opsional)"
+                      value={editForm.sapNo}
+                      onChange={(e) => setEditForm((p) => ({ ...p, sapNo: e.target.value }))}
+                    />
+                    {/* ✅ Jabatan dropdown */}
+                    <select
+                      className="border border-slate-200 bg-white text-slate-900 rounded-xl px-3 py-2 text-sm shadow-sm outline-none focus:ring-2 focus:ring-slate-200"
+                      value={editForm.jabatan}
+                      onChange={(e) => onPickEditJabatan(e.target.value as Jabatan)}
+                    >
+                      <option value="">Pilih Jabatan / Posisi</option>
+                      {JABATAN_OPTIONS.map((j) => (
+                        <option key={j} value={j}>
+                          {j}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <select
@@ -673,18 +776,9 @@ export default function AdminUsersPage() {
                       Delete
                     </button>
                   </div>
-
-                  <div className="pt-3 border-t border-slate-200 text-xs text-slate-600">
-                    Endpoint update/delete menggunakan <span className="font-mono">/api/admin/users?id=...</span>.
-                  </div>
                 </div>
               )}
             </div>
-          </div>
-
-          <div className="text-xs text-slate-600">
-            Tips: gunakan search untuk cepat menemukan user. Role{" "}
-            <span className="font-semibold">SUPERADMIN</span> sebaiknya dibatasi.
           </div>
         </div>
       </div>

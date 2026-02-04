@@ -64,6 +64,7 @@ const KONTRAK_DOKUMEN: LinkItem = {
     { id: 'material-new', title: 'Material – New', href: 'https://docs.google.com/spreadsheets/d/14iOhVb3X3H-BSLPKXApb9s60nqByMIcr/edit?gid=533844244#gid=533844244', tag: 'Sheet' },
     { id: 'sop-ik', title: 'SOP & IK', href: 'https://drive.google.com/drive/folders/1AbuXwtpZKb6R7Nuxw6afrK6PqK-Rm2Ul' },
     { id: 'workshop-sgh', title: 'Workshop Central SGH', href: 'https://drive.google.com/drive/folders/1EDzNxmfOYi1nmnLEhhTGg_Bq9erlgbj4?pli=1' },
+    { id: 'data-elektro', title: 'Data Elektro Motor PKS Reg III', href: 'https://docs.google.com/spreadsheets/d/1RkZ_85R0dwZtPmV0GLlKFhfgAf4OZWxZ/edit?usp=sharing&ouid=103770787638144208708&rtpof=true&sd=true' },
   ],
 };
 
