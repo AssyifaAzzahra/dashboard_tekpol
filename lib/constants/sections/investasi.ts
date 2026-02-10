@@ -43,6 +43,25 @@ const MONITORING: LinkItem = {
     { id: 'progres-inv-palmco', title: 'Progres Investasi PalmCo', href: 'https://docs.google.com/spreadsheets/d/1-LnjyAgeJ4jBvpucLp_iAnrGtn7WmCLrYnmWhzFub2A/edit#gid=0', tag: 'Sheet' },
     { id: 'rekap-inv-2123', title: 'Rekap Investasi 2021–2023', href: 'https://docs.google.com/spreadsheets/d/1iP140f27zkEx3mCncXlfXN_VRS4MY4GO/edit#gid=665753425', tag: 'Sheet' },
     { id: 'program-excavator-mini', title: 'Program kerja Excavator Mini Regional III', href: 'https://docs.google.com/spreadsheets/d/164fTQii_6hoxC4B-aE3usigY8cDMNRo-/edit?gid=680435153#gid=680435153', tag: 'Sheet' },
+
+    {
+      id: 'tag-pln',
+      title: 'Tagihan PLN',
+      children: [
+        {
+          id: 'tag-pln-sheet',
+          title: 'Tagihan PLN (Sheet)',
+          href: 'https://docs.google.com/spreadsheets/d/1W-Tjkuenbu_ARoUcmGv8_U44piLMFWTE/edit?gid=2096247908#gid=2096247908',
+          tag: 'Sheet',
+        },
+        {
+          id: 'tag-pln-drive',
+          title: 'Dokumen Tagihan PLN (Drive)',
+          href: 'https://drive.google.com/drive/folders/1N1dgisukbhAp-Eq7wfUHf6YMJ2Y-337r',
+          tag: 'Drive',
+        },
+      ],
+    },
   ],
 };
 

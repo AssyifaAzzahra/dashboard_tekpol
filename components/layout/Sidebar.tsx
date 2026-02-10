@@ -21,7 +21,14 @@ import { cls } from "@/lib/utils";
 import ProtectedSelectButton from "@/components/ui/ProtectedSelectButton";
 import { MENU_KEYWORDS } from "@/lib/constants/menu-keyword";
 
-type Role = "SUPERADMIN" | "PKWT" | "KARYAWAN" | "KASUBAG" | "KABAG" | "GUEST";
+type Role =
+  | "SUPERADMIN"
+  | "ADMIN"
+  | "PKWT"
+  | "KARYAWAN"
+  | "KASUBAG"
+  | "KABAG"
+  | "GUEST";
 
 export default function Sidebar({
   activeKey,
@@ -51,20 +58,32 @@ export default function Sidebar({
   const canSeeAdmin = role === "SUPERADMIN";
 
   // ✅ HANYA 12 akun PKS: harus punya pksCode
-  const isPksUser = Boolean(data?.user?.pksCode);
+  const isPksUser = Boolean((data?.user as any)?.pksCode);
+
+  // ✅ menu credentials hanya untuk role selain guest
+  const canSeeCredentialsMenu =
+    role === "SUPERADMIN" ||
+    role === "ADMIN" ||
+    role === "PKWT" ||
+    role === "KARYAWAN" ||
+    role === "KASUBAG" ||
+    role === "KABAG";
 
   const goHomeView = (view: HomeView) => {
     onSelect("home");
     onGoHomeView?.(view);
-    router.push("/");
+    router.push("/dashboard"); // ✅ tetap dashboard
   };
 
-  const handleInfoLoginClick = () => {
+  // ✅ Info Username & Password -> tetap /dashboard + set view info-login
+  const handleCredentialsClick = () => {
     if (!isLoggedIn) {
       router.push("/login");
       return;
     }
-    goHomeView("info-login");
+    onSelect("home");
+    onGoHomeView?.("info-login");
+    router.push("/dashboard"); // ✅ jangan ke /apps/credentials
   };
 
   return (
@@ -80,6 +99,7 @@ export default function Sidebar({
           onClick={() => {
             onSelect("home");
             onGoHomeView?.("root");
+            router.push("/dashboard");
           }}
           className={cls(
             "w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition",
@@ -212,7 +232,7 @@ export default function Sidebar({
           </button>
         </div>
 
-        {/* ✅ Upload Dokumen PKS */}
+        {/* Upload Dokumen PKS */}
         {isPksUser && (
           <div className="mt-2">
             <button
@@ -274,17 +294,19 @@ export default function Sidebar({
         <span className="text-sm font-semibold text-left leading-snug">Galeri</span>
       </button>
 
-      {/* Info Username & Password */}
-      <button
-        type="button"
-        onClick={handleInfoLoginClick}
-        className={cls(
-          "w-full bg-white/90 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800 rounded-xl p-3 mt-3 shadow-sm backdrop-blur-sm flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
-        )}
-      >
-        <User className="w-4 h-4" />
-        <span className="text-sm font-semibold text-left leading-snug">Info Username &amp; Password</span>
-      </button>
+      {/* ✅ Info Username & Password (muncul selain guest) */}
+      {canSeeCredentialsMenu && (
+        <button
+          type="button"
+          onClick={handleCredentialsClick}
+          className="w-full bg-white/90 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800 rounded-xl p-3 mt-3 shadow-sm backdrop-blur-sm flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+        >
+          <User className="w-4 h-4" />
+          <span className="text-sm font-semibold text-left leading-snug">
+            Info Username &amp; Password
+          </span>
+        </button>
+      )}
     </aside>
   );
 }

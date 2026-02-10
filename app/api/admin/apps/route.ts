@@ -1,20 +1,23 @@
 // app/api/admin/apps/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireSuperadmin } from "@/lib/admin";
 import { z } from "zod";
-import { writeAuditLog } from "@/lib/audit";
 import { Prisma } from "@prisma/client";
+import { writeAuditLog } from "@/lib/audit";
 import { deletePublicUploadByUrl, savePublicUpload } from "@/lib/upload";
 
+// ✅ ganti ini: SUPERADMIN + ADMIN
+import { requireAdmin } from "@/lib/admin";
+
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const CreateSchema = z.object({
   name: z.string().min(1),
   category: z.enum(["HO", "REGIONAL"]),
   url: z.string().optional().nullable(),
 
-  // ✅ sekarang opsional
+  // ✅ opsional
   username: z.string().optional().nullable(),
   password: z.string().optional().nullable(),
 
@@ -30,7 +33,7 @@ function jsonError(status: number, message: string, extra?: unknown) {
   );
 }
 
-function normalizeDescription(v: unknown): string | null | undefined {
+function normalizeOptionalString(v: unknown): string | null | undefined {
   if (v === undefined) return undefined;
   if (v === null) return null;
   if (typeof v !== "string") return undefined;
@@ -38,12 +41,8 @@ function normalizeDescription(v: unknown): string | null | undefined {
   return t ? t : null;
 }
 
-function normalizeOptionalString(v: unknown): string | null | undefined {
-  if (v === undefined) return undefined;
-  if (v === null) return null;
-  if (typeof v !== "string") return undefined;
-  const t = v.trim();
-  return t ? t : null;
+function normalizeDescription(v: unknown): string | null | undefined {
+  return normalizeOptionalString(v);
 }
 
 function normalizeUrl(v: unknown): string | null | undefined {
@@ -60,17 +59,35 @@ function normalizeUrl(v: unknown): string | null | undefined {
     new URL(withProto);
     return withProto;
   } catch {
+    // tetap simpan stringnya
     return withProto;
   }
 }
 
+async function safeDeleteLogo(url: string | null | undefined) {
+  if (!url) return;
+  await deletePublicUploadByUrl(url);
+}
+
 // ------------ GET (list) ------------
 export async function GET() {
-  const guard = await requireSuperadmin();
+  const guard = await requireAdmin();
   if (!guard.ok) return guard.res;
 
   const data = await prisma.app.findMany({
     orderBy: [{ category: "asc" }, { name: "asc" }],
+    select: {
+      id: true,
+      name: true,
+      category: true,
+      url: true,
+      username: true,
+      password: true,
+      description: true,
+      logoUrl: true,
+      createdAt: true,
+      updatedAt: true,
+    },
   });
 
   return NextResponse.json(data);
@@ -78,7 +95,7 @@ export async function GET() {
 
 // ------------ POST (create) ------------
 export async function POST(req: NextRequest) {
-  const guard = await requireSuperadmin();
+  const guard = await requireAdmin();
   if (!guard.ok) return guard.res;
 
   const actorId = guard.session.user?.id ?? null;
@@ -102,7 +119,7 @@ export async function POST(req: NextRequest) {
 
   if (logoFile instanceof File && logoFile.size > 0) {
     const uploaded = await savePublicUpload(logoFile, "apps");
-    uploadedLogoUrl = uploaded.urlPath; // contoh: /uploads/apps/xxx.png
+    uploadedLogoUrl = uploaded.urlPath;
   }
 
   try {
@@ -111,11 +128,8 @@ export async function POST(req: NextRequest) {
         name: parsed.data.name,
         category: parsed.data.category,
         url: normalizeUrl(parsed.data.url),
-
-        // ✅ opsional, kosong jadi null
         username: normalizeOptionalString(parsed.data.username),
         password: normalizeOptionalString(parsed.data.password),
-
         description: normalizeDescription(parsed.data.description),
         logoUrl: uploadedLogoUrl,
       },
@@ -132,10 +146,13 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(created, { status: 201 });
   } catch (e) {
-    if (uploadedLogoUrl) await deletePublicUploadByUrl(uploadedLogoUrl);
+    await safeDeleteLogo(uploadedLogoUrl);
 
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
-      return jsonError(409, "Data duplikat (unique constraint).", { code: e.code, meta: e.meta });
+      return jsonError(409, "Data duplikat (unique constraint).", {
+        code: e.code,
+        meta: e.meta,
+      });
     }
     return jsonError(500, "Gagal create app.", String(e));
   }
@@ -143,7 +160,7 @@ export async function POST(req: NextRequest) {
 
 // ------------ PATCH (update via ?id=) ------------
 export async function PATCH(req: NextRequest) {
-  const guard = await requireSuperadmin();
+  const guard = await requireAdmin();
   if (!guard.ok) return guard.res;
 
   const actorId = guard.session.user?.id ?? null;
@@ -169,7 +186,6 @@ export async function PATCH(req: NextRequest) {
 
   if (!parsed.success) return NextResponse.json(parsed.error, { status: 400 });
 
-  // optional file logo
   const nextLogo = form.get("logo");
   let newLogoUrl: string | undefined;
 
@@ -178,13 +194,12 @@ export async function PATCH(req: NextRequest) {
     newLogoUrl = uploaded.urlPath;
   }
 
-  const data: any = {};
+  const data: Prisma.AppUpdateInput = {};
+
   if (parsed.data.name !== undefined) data.name = parsed.data.name;
   if (parsed.data.category !== undefined) data.category = parsed.data.category;
-
   if (parsed.data.url !== undefined) data.url = normalizeUrl(parsed.data.url);
 
-  // ✅ opsional
   if (parsed.data.username !== undefined) data.username = normalizeOptionalString(parsed.data.username);
   if (parsed.data.password !== undefined) data.password = normalizeOptionalString(parsed.data.password);
 
@@ -195,8 +210,7 @@ export async function PATCH(req: NextRequest) {
   try {
     const updated = await prisma.app.update({ where: { id }, data });
 
-    // kalau ganti logo, hapus logo lama
-    if (newLogoUrl) await deletePublicUploadByUrl(before.logoUrl);
+    if (newLogoUrl) await safeDeleteLogo(before.logoUrl);
 
     await writeAuditLog({
       action: "UPDATE_APP",
@@ -209,7 +223,7 @@ export async function PATCH(req: NextRequest) {
 
     return NextResponse.json(updated);
   } catch (e) {
-    if (newLogoUrl) await deletePublicUploadByUrl(newLogoUrl);
+    await safeDeleteLogo(newLogoUrl);
 
     if (e instanceof Prisma.PrismaClientKnownRequestError) {
       if (e.code === "P2002") return jsonError(409, "Data duplikat (unique constraint).", { code: e.code, meta: e.meta });
@@ -221,7 +235,7 @@ export async function PATCH(req: NextRequest) {
 
 // ------------ DELETE (delete via ?id=) ------------
 export async function DELETE(req: NextRequest) {
-  const guard = await requireSuperadmin();
+  const guard = await requireAdmin();
   if (!guard.ok) return guard.res;
 
   const actorId = guard.session.user?.id ?? null;
@@ -242,8 +256,7 @@ export async function DELETE(req: NextRequest) {
   try {
     await prisma.app.delete({ where: { id } });
 
-    // hapus file logo kalau ada
-    await deletePublicUploadByUrl(before.logoUrl);
+    await safeDeleteLogo(before.logoUrl);
 
     await writeAuditLog({
       action: "DELETE_APP",

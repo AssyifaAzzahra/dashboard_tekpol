@@ -1,35 +1,45 @@
 // components/home/HomeRouter.tsx
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import type { HomeView } from '@/lib/types';
+import { useState, useEffect } from "react";
+import type { HomeView } from "@/lib/types";
 
-import HomeHero from './HomeHero';
-import ProfileCards from './ProfileCards';
-import PksList from './PksList';
-import PksDetailView from './PksDetail';
-import PpisDetail from './PpisDetail';
-import PpkrDetail from './PpkrDetail';
-import { PKS_LIST, getPksDetail } from '@/lib/data/pks';
-import NewsSection from './NewsSection';
-import { useSession } from 'next-auth/react';
+import HomeHero from "./HomeHero";
+import ProfileCards from "./ProfileCards";
+import PksList from "./PksList";
+import PksDetailView from "./PksDetail";
+import PpisDetail from "./PpisDetail";
+import PpkrDetail from "./PpkrDetail";
+import { PKS_LIST, getPksDetail } from "@/lib/data/pks";
+import NewsSection from "./NewsSection";
+import { useSession } from "next-auth/react";
 
-import AppsClient from '@/app/apps/credentials/view-client';
-import RequestFormClient from '@/app/(public)/info-login/request-form-client';
-import ApprovalClient from '@/app/(public)/approval/view-client';
+import AppsClient from "@/app/apps/credentials/view-client";
+import RequestFormClient from "@/app/(public)/info-login/request-form-client";
+import ApprovalClient from "@/app/(public)/approval/view-client";
 
-// ---- tipe dasar ----
-type Role = 'PKWT' | 'KARYAWAN' | 'KASUBAG' | 'KABAG' | 'GUEST';
-type Decision = 'PENDING' | 'APPROVED' | 'REJECTED';
-type Category = 'HO' | 'REGIONAL';
+// ✅ Role sesuai requirement kamu
+type Role =
+  | "SUPERADMIN"
+  | "ADMIN"
+  | "PKWT"
+  | "KARYAWAN"
+  | "KASUBAG"
+  | "KABAG"
+  | "GUEST";
+
+type Decision = "PENDING" | "APPROVED" | "REJECTED";
+type Category = "HO" | "REGIONAL";
 
 type App = {
   id: string;
   name: string;
   category: Category;
-  username: string;
-  password: string;
+  username?: string | null;
+  password?: string | null;
   description?: string | null;
+  url?: string | null;
+  logoUrl?: string | null;
 };
 
 type User = {
@@ -38,37 +48,12 @@ type User = {
   email?: string | null;
 };
 
-// ====== APPROVAL UNTUK INFO-LOGIN (MyReq di AppsClient) ======
-type ApprovalInfo = {
-  id: string;
-  requestId: string;
-  approverId: string;
-  role: Role;
-  decision: Decision;
-  note?: string | null;
-  decidedAt?: Date | null;
-  approver?: User | null;
-};
-
-// ====== APPROVAL UNTUK HALAMAN APPROVAL (rows) ======
-type ApprovalRow = {
-  id: string;
-  requestId: string;
-  approverId: string;
-  role: Role;
-  decision: Decision;
-  note?: string | null;
-  decidedAt?: string | null;
-  approver: User;
-};
-
-// ====== REQUEST DASAR (tanpa relasi) ======
 type BaseRequest = {
   id: string;
-  type: 'PKWT' | 'GUEST';
+  type: "PKWT" | "GUEST";
   appId: string;
-  requesterId: string | null;   // boleh null utk tamu
-  guestName?: string | null;    // nama tamu
+  requesterId: string | null;
+  guestName?: string | null;
   picId?: string | null;
   reason?: string | null;
   division?: string | null;
@@ -76,34 +61,41 @@ type BaseRequest = {
   rejectionNote?: string | null;
 };
 
-// ====== REQUEST UNTUK HALAMAN APPROVAL (rows) ======
 type Row = BaseRequest & {
   app: App;
   requester?: User | null;
-  approvals: ApprovalRow[];
+  approvals: any[];
   pic: User | null;
 };
 
 // ----- Loader kecil untuk info-login -----
 function InfoLoginPane() {
   const { data } = useSession();
-  const role = (data?.user?.role ?? 'GUEST') as Role;
-  const userName = data?.user?.name ?? '';
+  const role = (data?.user?.role ?? "GUEST") as Role;
+  const userName = data?.user?.name ?? "";
 
   const [apps, setApps] = useState<App[]>([]);
   const [myReqs, setMyReqs] = useState<any[]>([]);
   const [pics, setPics] = useState<User[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
+  // ✅ yang boleh lihat kredensial
+  const canSeeCreds = role === "KARYAWAN" || role === "SUPERADMIN";
+
   useEffect(() => {
     let alive = true;
 
     (async () => {
       try {
+        setLoading(true);
+
+        // ✅ karyawan/superadmin ambil apps yg berisi username/password
+        const appsUrl = canSeeCreds ? "/api/apps/credentials" : "/api/apps";
+
         const [appsRes, reqsRes, picsRes] = await Promise.all([
-          fetch('/api/apps', { cache: 'no-store' }),
-          fetch('/api/requests', { cache: 'no-store' }),
-          fetch('/api/pics', { cache: 'no-store' }),
+          fetch(appsUrl, { cache: "no-store" }),
+          fetch("/api/requests", { cache: "no-store" }),
+          fetch("/api/pics", { cache: "no-store" }),
         ]);
 
         const [appsJson, reqsJson, picsJson] = await Promise.all([
@@ -114,9 +106,14 @@ function InfoLoginPane() {
 
         if (!alive) return;
 
-        setApps(appsJson as App[]);
-        setMyReqs(reqsJson as any[]);
-        setPics(picsJson as User[]);
+        setApps(Array.isArray(appsJson) ? (appsJson as App[]) : []);
+        setMyReqs(Array.isArray(reqsJson) ? (reqsJson as any[]) : []);
+        setPics(Array.isArray(picsJson) ? (picsJson as User[]) : []);
+      } catch {
+        if (!alive) return;
+        setApps([]);
+        setMyReqs([]);
+        setPics([]);
       } finally {
         if (alive) setLoading(false);
       }
@@ -125,7 +122,7 @@ function InfoLoginPane() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [canSeeCreds]);
 
   if (loading) {
     return (
@@ -139,18 +136,24 @@ function InfoLoginPane() {
     );
   }
 
-  // 👉 Hanya KARYAWAN yang boleh lihat daftar username/password
-  if (role === 'KARYAWAN') {
-    return <AppsClient role={role} apps={apps} myReqs={myReqs} pics={pics} />;
+  if (canSeeCreds) {
+    return (
+      <AppsClient
+        role={role as any}
+        apps={apps as any}
+        myReqs={myReqs as any}
+        pics={pics as any}
+        currentUserName={userName}
+      />
+    );
   }
 
-  // 👉 PKWT, GUEST, KASUBAG, KABAG: tampilan sama seperti guest (form permohonan)
   return (
     <RequestFormClient
-      role={role}
-      apps={apps}
-      pics={pics}
-      myReqs={myReqs}
+      role={role as any}
+      apps={apps as any}
+      pics={pics as any}
+      myReqs={myReqs as any}
       userName={userName}
     />
   );
@@ -169,7 +172,7 @@ function ApprovalPane() {
     try {
       const res = await fetch("/api/approval", { cache: "no-store" });
       const json = await res.json();
-      setRows(json as Row[]);
+      setRows(Array.isArray(json) ? (json as Row[]) : []);
     } finally {
       setLoading(false);
     }
@@ -187,9 +190,8 @@ function ApprovalPane() {
     );
   }
 
-  return <ApprovalClient role={role} rows={rows} onDone={load} />;
+  return <ApprovalClient role={role as any} rows={rows as any} onDone={load} />;
 }
-
 
 export default function HomeRouter({
   forcedView,
@@ -198,72 +200,51 @@ export default function HomeRouter({
   forcedView?: HomeView;
   onViewChange?: (v: HomeView) => void;
 }) {
-  const [internalView, setInternalView] = useState<HomeView>('root');
+  const [internalView, setInternalView] = useState<HomeView>("root");
   const [selectedPksId, setSelectedPksId] = useState<string | null>(null);
 
   const view = forcedView ?? internalView;
 
   const setView = (v: HomeView) => {
-    if (forcedView) {
-      onViewChange?.(v);
-    } else {
-      setInternalView(v);
-      onViewChange?.(v);
-    }
+    if (forcedView) onViewChange?.(v);
+    else setInternalView(v);
+    onViewChange?.(v);
   };
 
-  // === PKS list ===
-  if (view === 'pks-list') {
+  if (view === "pks-list") {
     return (
       <PksList
         list={PKS_LIST}
-        onBack={() => setView('root')}
+        onBack={() => setView("root")}
         onSelect={(id) => {
           setSelectedPksId(id);
-          setView('pks-detail');
+          setView("pks-detail");
         }}
       />
     );
   }
 
-  // === PKS detail ===
-  if (view === 'pks-detail' && selectedPksId) {
+  if (view === "pks-detail" && selectedPksId) {
     const detail = getPksDetail(selectedPksId);
     if (!detail) return null;
-    return (
-      <PksDetailView
-        detail={detail}
-        onBack={() => setView('pks-list')}
-      />
-    );
+    return <PksDetailView detail={detail} onBack={() => setView("pks-list")} />;
   }
 
-  // === PPIS & PPKR ===
-  if (view === 'ppis') {
-    return <PpisDetail onBack={() => setView('root')} />;
-  }
+  if (view === "ppis") return <PpisDetail onBack={() => setView("root")} />;
+  if (view === "ppkr") return <PpkrDetail onBack={() => setView("root")} />;
 
-  if (view === 'ppkr') {
-    return <PpkrDetail onBack={() => setView('root')} />;
-  }
+  // ✅ tetap di dashboard (sub-view)
+  if (view === "info-login") return <InfoLoginPane />;
 
-  // === Integrasi halaman lain sebagai sub-view ===
-  if (view === 'info-login') {
-    return <InfoLoginPane />;
-  }
+  if (view === "approval") return <ApprovalPane />;
 
-  if (view === 'approval') {
-    return <ApprovalPane />;
-  }
-
-  // === ROOT ===
   return (
     <>
       <HomeHero />
       <ProfileCards
-        onPks={() => setView('pks-list')}
-        onPpis={() => setView('ppis')}
-        onPpkr={() => setView('ppkr')}
+        onPks={() => setView("pks-list")}
+        onPpis={() => setView("ppis")}
+        onPpkr={() => setView("ppkr")}
       />
       <NewsSection />
     </>

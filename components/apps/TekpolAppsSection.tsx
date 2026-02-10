@@ -73,7 +73,7 @@ export default function TekpolAppsSection() {
         {/* HEADER + SEARCH */}
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
-            <div className="mb-1 text-2xl font-bold">Tekpol Apps</div>
+            <div className="mb-1 text-2xl font-bold">Apps HO dan Regional</div>
             <div className="text-slate-600">
               {filteredApps.length} item{filteredApps.length !== 1 ? "" : ""}{" "}
               {query.trim() ? (
