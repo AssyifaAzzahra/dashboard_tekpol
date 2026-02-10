@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -6,11 +6,18 @@ import { authOptions } from "@/lib/auth";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type Role = "SUPERADMIN" | "ADMIN" | "PKWT" | "KARYAWAN" | "KASUBAG" | "KABAG" | "GUEST";
+type Role =
+  | "SUPERADMIN"
+  | "ADMIN"
+  | "PKWT"
+  | "KARYAWAN"
+  | "KASUBAG"
+  | "KABAG"
+  | "GUEST";
 
 export async function PATCH(
-  req: Request,
-  { params }: { params: { id: string } }
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getServerSession(authOptions);
   const role = (session?.user?.role ?? "GUEST") as Role;
@@ -18,6 +25,8 @@ export async function PATCH(
   if (!session || (role !== "SUPERADMIN" && role !== "ADMIN")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const { id } = await params;
 
   const body = (await req.json()) as {
     username?: string | null;
@@ -28,7 +37,7 @@ export async function PATCH(
   };
 
   const updated = await prisma.app.update({
-    where: { id: params.id },
+    where: { id },
     data: {
       username: body.username ?? null,
       password: body.password ?? null,
