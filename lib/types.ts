@@ -68,7 +68,31 @@ export type PksDetail = {
   updatedAt: Date;
 };
 
+// ===============================
+// NEWS TYPES
+// ===============================
+
 export type NewsSource = "INTERNAL" | "INSTAGRAM";
+
+/**
+ * ✅ FIX: Ditambahkan karena dipakai di lib/data/news.ts
+ */
+export type NewsItem = {
+  id: string;
+  title: string;
+  tag: string;
+  date: string;
+  excerpt: string;
+  body: string;
+  image?: string;
+  youtubeId?: string;
+  videoUrl?: string;
+  labelAbove?: string;
+
+  // optional untuk kebutuhan eksternal
+  sourceType?: NewsSource;
+  instagramUrl?: string | null;
+};
 
 // ===============================
 // AUTH & CREDENTIAL TYPES
