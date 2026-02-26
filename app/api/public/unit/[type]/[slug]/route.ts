@@ -24,12 +24,14 @@ function getType(params: { type?: string }): UnitType | null {
  */
 export async function GET(
   _req: NextRequest,
-  ctx: { params: { type: string; slug: string } }
+  ctx: { params: Promise<{ type: string; slug: string }> } // ✅ FIX: params is Promise
 ) {
-  const type = getType(ctx.params);
+  const params = await ctx.params; // ✅ FIX: await params
+
+  const type = getType(params);
   if (!type) return bad("Invalid type. Use: pks | ppis | ppkr");
 
-  const slug = String(ctx.params.slug || "").trim();
+  const slug = String(params.slug || "").trim();
   if (!slug) return bad("slug is required");
 
   if (type === "pks") {
