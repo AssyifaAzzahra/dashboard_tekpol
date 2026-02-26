@@ -45,6 +45,29 @@ export type Pks = {
   kapasitasTbsPerJam: number;
 };
 
+/**
+ * ✅ FIX: Ditambahkan karena dipakai di components/home/PksDetailView.tsx
+ * Sesuai field yang kamu return dari route:
+ * id, name, slug, shortProfile, address, capacity, yearOperation, lineCount,
+ * operationalNotes, photoUrl, structureUrl, certificateUrl, createdAt, updatedAt
+ */
+export type PksDetail = {
+  id: string;
+  name: string;
+  slug: string;
+  shortProfile: string | null;
+  address: string | null;
+  capacity: string | null;
+  yearOperation: number | null;
+  lineCount: number | null;
+  operationalNotes: string | null;
+  photoUrl: string | null;
+  structureUrl: string | null;
+  certificateUrl: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 export type NewsSource = "INTERNAL" | "INSTAGRAM";
 
 // ===============================
