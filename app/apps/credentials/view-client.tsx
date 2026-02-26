@@ -313,7 +313,7 @@ export default function AppsClient({
                   className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 text-sm font-semibold"
                   type="button"
                 >
-                  Mengerti
+                  Tutup
                 </button>
               </div>
             </div>

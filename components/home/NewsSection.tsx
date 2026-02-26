@@ -55,11 +55,11 @@ function parseInstagramEmbed(urlStr: string | null | undefined): string | null {
     const parts = url.pathname.split("/").filter(Boolean);
     if (parts.length < 2) return null;
 
-    const kind = parts[0]; // p | reel
+    const kind = parts[0]; // p | reel | tv
     const code = parts[1];
-    if (!code || (kind !== "p" && kind !== "reel")) return null;
+    if (!code || (kind !== "p" && kind !== "reel" && kind !== "tv")) return null;
 
-    // pakai captioned biar mirip contoh “Latest News”
+    // captioned biar mirip contoh “Latest News”
     return `https://www.instagram.com/${kind}/${code}/embed/captioned/`;
   } catch {
     return null;
@@ -83,6 +83,8 @@ export default function NewsSection() {
         if (!res.ok) throw new Error(await res.text());
         const data = (await res.json()) as PublicNews[];
         if (!alive) return;
+
+        // berita boleh tetap dibatasi di UI
         setNews((Array.isArray(data) ? data : []).slice(0, 12));
       } catch {
         if (!alive) return;
@@ -105,11 +107,15 @@ export default function NewsSection() {
     (async () => {
       try {
         setLoadingIg(true);
+
+        // Backend yang handle FIFO + limit max 6.
+        // Jadi di frontend TIDAK perlu slice lagi.
         const res = await fetch("/api/instagram", { cache: "no-store" });
         if (!res.ok) throw new Error(await res.text());
         const data = (await res.json()) as IgItem[];
         if (!alive) return;
-        setIg((Array.isArray(data) ? data : []).slice(0, 6));
+
+        setIg(Array.isArray(data) ? data : []);
       } catch {
         if (!alive) return;
         setIg([]);
@@ -272,7 +278,7 @@ export default function NewsSection() {
 
   return (
     <section className="mt-6 space-y-4">
-      {/* ===== row atas: Berita Terkini + YouTube (tetap sama ukuran) ===== */}
+      {/* ===== row atas: Berita Terkini + YouTube ===== */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 items-stretch">
         {/* ========== BOX 1: BERITA TERKINI ========== */}
         <div className="h-full flex flex-col rounded-2xl border border-slate-200 bg-white/80 shadow-sm p-4">
@@ -426,7 +432,9 @@ export default function NewsSection() {
               >
                 <div className="relative w-full aspect-[16/10]">
                   <iframe
-                    className={`absolute inset-0 h-full w-full rounded-t-lg ${videoDragging ? "pointer-events-none" : ""}`}
+                    className={`absolute inset-0 h-full w-full rounded-t-lg ${
+                      videoDragging ? "pointer-events-none" : ""
+                    }`}
                     src={toYouTubeEmbed(n.videoUrl)}
                     title={n.title}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -488,7 +496,6 @@ export default function NewsSection() {
                       <div className="p-4 text-sm text-slate-500">Link Instagram tidak valid.</div>
                     )}
                   </div>
-
                 </div>
               );
             })}

@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
       id: true,
       title: true,
       instagramUrl: true,
-      coverImageUrl: true, // optional thumbnail (kalau admin upload cover)
+      coverImageUrl: true,
       createdAt: true,
     },
   });

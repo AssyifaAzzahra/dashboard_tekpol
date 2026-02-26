@@ -9,6 +9,10 @@ import { put } from "@vercel/blob";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// Maksimal item Instagram yang disimpan (Latest News)
+// Jika admin menambah item ke-(MAX+1), item paling lama otomatis dihapus 1 (FIFO).
+const MAX_INSTAGRAM_ITEMS = 6;
+
 function jsonError(status: number, message: string, extra?: unknown) {
   return NextResponse.json(
     { error: status >= 500 ? "Internal Server Error" : "Bad Request", message, extra },
@@ -156,20 +160,44 @@ export async function POST(req: NextRequest) {
 
     const authorId = await resolveAuthorId(actorId, actorEmail);
 
-    const created = await prisma.news.create({
-      data: {
-        title: parsed.data.title.trim(),
-        slug,
-        excerpt: null,
-        content: "[INSTAGRAM]",
-        coverImageUrl,
-        isPublished: !!parsed.data.isPublished,
-        publishedAt: parsed.data.isPublished ? (parsed.data.publishedAt ?? new Date()) : null,
-        authorId,
+    // ✅ FIFO LOGIC (max 6)
+    const created = await prisma.$transaction(async (tx) => {
+      // Jika sudah >= MAX, hapus item paling lama sampai ada ruang untuk 1 item baru.
+      const existingCount = await tx.news.count({
+        where: { sourceType: NewsSource.INSTAGRAM },
+      });
 
-        sourceType: NewsSource.INSTAGRAM,
-        instagramUrl: canonical,
-      },
+      // targetnya: setelah insert, total tetap MAX_INSTAGRAM_ITEMS
+      const overflow = Math.max(existingCount - (MAX_INSTAGRAM_ITEMS - 1), 0);
+
+      if (overflow > 0) {
+        const oldest = await tx.news.findMany({
+          where: { sourceType: NewsSource.INSTAGRAM },
+          orderBy: [{ createdAt: "asc" }], // paling lama
+          take: overflow,
+          select: { id: true },
+        });
+
+        const oldestIds = oldest.map((x) => x.id);
+        if (oldestIds.length) {
+          await tx.news.deleteMany({ where: { id: { in: oldestIds } } });
+        }
+      }
+
+      return tx.news.create({
+        data: {
+          title: parsed.data.title.trim(),
+          slug,
+          excerpt: null,
+          content: "[INSTAGRAM]",
+          coverImageUrl,
+          isPublished: !!parsed.data.isPublished,
+          publishedAt: parsed.data.isPublished ? (parsed.data.publishedAt ?? new Date()) : null,
+          authorId,
+          sourceType: NewsSource.INSTAGRAM,
+          instagramUrl: canonical,
+        },
+      });
     });
 
     await writeAuditLog({

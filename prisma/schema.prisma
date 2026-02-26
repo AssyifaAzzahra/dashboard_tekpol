@@ -5,6 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_DIRECT")
 }
 
 model User {
@@ -231,6 +232,15 @@ model PksDocumentSubmission {
   uploader   User?   @relation(fields: [uploaderId], references: [id])
   uploaderId String?
 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ContentSection {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  title     String
+  content   Json
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

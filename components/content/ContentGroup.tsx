@@ -35,16 +35,28 @@ export default function ContentGroup({
           <FolderOpen className="w-5 h-5 text-emerald-500" />
           <span className="font-semibold text-slate-100">{title}</span>
         </div>
-        {open ? <ChevronDown className="w-4 h-4 text-slate-400" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
+        {open ? (
+          <ChevronDown className="w-4 h-4 text-slate-400" />
+        ) : (
+          <ChevronRight className="w-4 h-4 text-slate-400" />
+        )}
       </button>
 
       {open && (
-        <div className="p-3 space-y-2">
+        <div
+          className={cls(
+            'p-3 space-y-2',
+            items.length > 10 && 'max-h-[420px] overflow-y-auto pr-1'
+          )}
+        >
           {items.map((it) => (
             <ContentItemRow key={it.id} item={it} />
           ))}
+
           {items.length === 0 && (
-            <div className="text-center text-slate-500 text-sm py-6">Belum ada item.</div>
+            <div className="text-center text-slate-500 text-sm py-6">
+              Belum ada item.
+            </div>
           )}
         </div>
       )}

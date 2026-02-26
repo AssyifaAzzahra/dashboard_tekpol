@@ -1,4 +1,3 @@
-// app/admin/pks-deck/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -39,9 +38,12 @@ export default function AdminPksDeckPage() {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
-  const [preview, setPreview] = useState<{ url: string; name: string; pksId: string; type?: string } | null>(
-    null
-  );
+  const [preview, setPreview] = useState<{
+    url: string;
+    name: string;
+    pksId: string;
+    type?: string;
+  } | null>(null);
 
   const load = async () => {
     const res = await fetch("/api/admin/pks-deck", { cache: "no-store" });
@@ -63,7 +65,6 @@ export default function AdminPksDeckPage() {
 
   const previewSrc = (url: string, name: string, type?: string) => {
     if (type === "pdf" || isPdf(name) || isPdf(url)) return url;
-    // lebih enak untuk iframe (slide)
     return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
   };
 
@@ -109,11 +110,11 @@ export default function AdminPksDeckPage() {
     }
   };
 
-  const onDelete = async (id: string) => {
+  const onDelete = async (pksIdToDelete: string) => {
     if (!confirm("Yakin mau hapus file Profil (PPT/PDF) untuk PKS ini?")) return;
 
     try {
-      const res = await fetch(`/api/admin/pks-deck?pksId=${encodeURIComponent(id)}`, {
+      const res = await fetch(`/api/admin/pks-deck?pksId=${encodeURIComponent(pksIdToDelete)}`, {
         method: "DELETE",
       });
       const { json, text } = await safeJson(res);
@@ -124,7 +125,7 @@ export default function AdminPksDeckPage() {
         return;
       }
 
-      if (preview?.pksId === id) setPreview(null);
+      if (preview?.pksId === pksIdToDelete) setPreview(null);
       await load();
     } catch (e) {
       console.error(e);
@@ -192,13 +193,7 @@ export default function AdminPksDeckPage() {
           type="button"
           onClick={onUpload}
           disabled={loading || !file}
-          className="
-            relative z-10
-            rounded-xl px-4 py-2
-            bg-emerald-600 text-white
-            hover:bg-emerald-700
-            disabled:opacity-50 disabled:cursor-not-allowed
-          "
+          className="rounded-xl px-4 py-2 bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? "Uploading..." : "Upload / Update"}
         </button>
@@ -235,7 +230,9 @@ export default function AdminPksDeckPage() {
               <div className="shrink-0 flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setPreview({ url: r.fileUrl, name: r.fileName, pksId: r.pksId, type: r.fileType })}
+                  onClick={() =>
+                    setPreview({ url: r.fileUrl, name: r.fileName, pksId: r.pksId, type: r.fileType })
+                  }
                   className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm bg-slate-900 text-white hover:bg-slate-800"
                 >
                   <Eye className="w-4 h-4" />

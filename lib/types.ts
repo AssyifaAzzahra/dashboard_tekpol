@@ -1,4 +1,5 @@
 // lib/types.ts
+
 export type LinkItem = {
   id: string;
   title: string;
@@ -6,7 +7,7 @@ export type LinkItem = {
   desc?: string;
   tag?: string;
   children?: LinkItem[];
-  logoUrl?: string; // ✅ WAJIB
+  logoUrl?: string;
 };
 
 export type ContentBucket = {
@@ -44,40 +45,21 @@ export type Pks = {
   kapasitasTbsPerJam: number;
 };
 
-export type PksDetail = {
-  id: string;
-  nama: string;
-  infoUmum: {
-    jenis: string;
-    alamat: string;
-    kapasitasTbsPerJam: number;
-    tahunOperasional: number;
-    jumlahLine: number;
-  };
-  catatan: string[];
-};
-
 export type NewsSource = "INTERNAL" | "INSTAGRAM";
 
-export type NewsItem = {
-  id: string;
-  title: string;
-  tag: string;
-  date: string;
-  excerpt: string;
-  body: string;
-  image?: string;
-  youtubeId?: string;
-  videoUrl?: string;
-  labelAbove?: string;
+// ===============================
+// AUTH & CREDENTIAL TYPES
+// ===============================
 
-  // optional kalau nanti kamu butuh di tempat lain
-  sourceType?: NewsSource;
-  instagramUrl?: string | null;
-};
+export type Role =
+  | "PKWT"
+  | "KARYAWAN"
+  | "KASUBAG"
+  | "KABAG"
+  | "GUEST"
+  | "SUPERADMIN"
+  | "ADMIN";
 
-// ===== tipe ringan untuk auth & data kredensial/approval =====
-export type Role = "PKWT" | "KARYAWAN" | "KASUBAG" | "KABAG" | "GUEST";
 export type Decision = "PENDING" | "APPROVED" | "REJECTED";
 export type Category = "HO" | "REGIONAL";
 
@@ -85,14 +67,13 @@ export type App = {
   id: string;
   name: string;
   category: Category;
-  username: string;
-  password: string;
+
+  // nullable sesuai Prisma
+  username?: string | null;
+  password?: string | null;
+
   description?: string | null;
-
-  // ✅ TAMBAH: biar selaras dengan DB & UI Tekpol Apps
   url?: string | null;
-
-  // ✅ TAMBAH: url logo (contoh: /uploads/apps/xxx.png atau URL cloud)
   logoUrl?: string | null;
 };
 
@@ -119,7 +100,7 @@ export type Request = {
   id: string;
   type: "PKWT" | "GUEST";
   appId: string;
-  requesterId: string;
+  requesterId?: string | null;
   picId?: string | null;
   reason?: string | null;
   division?: string | null;
@@ -127,4 +108,8 @@ export type Request = {
   rejectionNote?: string | null;
 };
 
-export type MyReq = Request & { app: App; approvals: Approval[]; pic: User | null };
+export type MyReq = Request & {
+  app?: App;
+  approvals?: Approval[];
+  pic?: User | null;
+};

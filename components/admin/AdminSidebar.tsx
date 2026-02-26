@@ -14,6 +14,9 @@ import {
   Image as ImageIcon,
   Tags,
   FileText,
+  FileCog,
+  Factory,        // ✅ icon untuk PKS
+  Building2,      // ✅ icon untuk PPIS / PPKR
 } from "lucide-react";
 
 type Menu = {
@@ -24,21 +27,28 @@ type Menu = {
 };
 
 const menus: Menu[] = [
+  // ================= MAIN =================
   { href: "/admin", label: "Dashboard", icon: <LayoutDashboard className="h-4 w-4" />, group: "MAIN" },
   { href: "/admin/requests", label: "Requests", icon: <Inbox className="h-4 w-4" />, group: "MAIN" },
   { href: "/admin/apps", label: "Apps", icon: <AppWindow className="h-4 w-4" />, group: "MAIN" },
   { href: "/admin/users", label: "Users & Roles", icon: <Users className="h-4 w-4" />, group: "MAIN" },
   { href: "/admin/audit", label: "Audit Log", icon: <ScrollText className="h-4 w-4" />, group: "MAIN" },
 
-  // CONTENT
+  // ================= CONTENT =================
   { href: "/admin/news", label: "News", icon: <Newspaper className="h-4 w-4" />, group: "CONTENT" },
   { href: "/admin/instagram", label: "Instagram", icon: <Instagram className="h-4 w-4" />, group: "CONTENT" },
   { href: "/admin/gallery", label: "Gallery", icon: <ImageIcon className="h-4 w-4" />, group: "CONTENT" },
   { href: "/admin/gallery-categories", label: "Kategori Galeri", icon: <Tags className="h-4 w-4" />, group: "CONTENT" },
   { href: "/admin/pks-deck", label: "PPT PKS", icon: <FileText className="h-4 w-4" />, group: "CONTENT" },
-
-  // ✅ NEW: Dokumen dari 12 akun PKS
   { href: "/admin/pks-documents", label: "Dokumen PKS", icon: <FileText className="h-4 w-4" />, group: "CONTENT" },
+
+  // ✅ NEW: CRUD UNIT
+  { href: "/admin/pks", label: "Kelola PKS", icon: <Factory className="h-4 w-4" />, group: "CONTENT" },
+  { href: "/admin/ppis", label: "Kelola PPIS", icon: <Building2 className="h-4 w-4" />, group: "CONTENT" },
+  { href: "/admin/ppkr", label: "Kelola PPKR", icon: <Building2 className="h-4 w-4" />, group: "CONTENT" },
+
+  // ✅ Dokumen Tekpol
+  { href: "/admin/content", label: "Dokumen TEKPOL", icon: <FileCog className="h-4 w-4" />, group: "CONTENT" },
 ];
 
 export default function AdminSidebar() {
@@ -55,6 +65,7 @@ export default function AdminSidebar() {
       </div>
 
       <nav className="p-3 space-y-3">
+        {/* ===== MAIN ===== */}
         <div className="space-y-1">
           {main.map((m) => {
             const active = path === m.href;
@@ -70,14 +81,19 @@ export default function AdminSidebar() {
                     : "text-slate-300"
                 )}
               >
-                <span className={cls(active ? "text-emerald-200" : "text-slate-400")}>{m.icon}</span>
+                <span className={cls(active ? "text-emerald-200" : "text-slate-400")}>
+                  {m.icon}
+                </span>
                 <span>{m.label}</span>
               </Link>
             );
           })}
         </div>
 
-        <div className="px-3 pt-2 text-[11px] uppercase tracking-wider text-slate-500">Content</div>
+        {/* ===== CONTENT ===== */}
+        <div className="px-3 pt-2 text-[11px] uppercase tracking-wider text-slate-500">
+          Content
+        </div>
 
         <div className="space-y-1">
           {content.map((m) => {
@@ -94,7 +110,9 @@ export default function AdminSidebar() {
                     : "text-slate-300"
                 )}
               >
-                <span className={cls(active ? "text-emerald-200" : "text-slate-400")}>{m.icon}</span>
+                <span className={cls(active ? "text-emerald-200" : "text-slate-400")}>
+                  {m.icon}
+                </span>
                 <span>{m.label}</span>
               </Link>
             );
